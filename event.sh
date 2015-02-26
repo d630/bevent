@@ -439,6 +439,7 @@ case $1 in
     99) printf '%s\n' "${time_curr} ${0}:Info:${1}: Restarting loop 'file' with pid: '${2}'" 1>&2 ; exit "$1"                        ;;
     100) printf '%s\n' "${time_curr} ${0}:Info:${1}: Restarting loops 'file' and 'period' with pids: '${2}','${3}'" 1>&2 ; exit "$1" ;;
     101) printf '%s\n' "${time_curr} ${0}:Info:${1}: Stopping loop 'fifo' with pid: '${2}'" 1>&2 ; exit "$1"                         ;;
+    102) printf '%s\n' "${time_curr} ${0}:Error:${1}: Event symbols missing" 1>&2 ; exit "$1"                                        ;;
 esac
 
 __event_sub_file ()
@@ -480,6 +481,12 @@ __event_sub_file ()
     if ((${#files[@]} == 0))
     then
         __event_status 83
+    elif ((${#commands[@]} == 0))
+    then
+        __event_status 82
+    elif ((${#symbols[@]} == 0))
+    then
+        __event_status 102
     else
         while IFS='_' read -r event_number _
         do
@@ -545,7 +552,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.7alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.8alpha" "$md5sum"
 }
 
 # -- MAIN.
