@@ -548,10 +548,10 @@ __event_sub_period ()
 
 __event_version ()
 {
-    declare md5sum
+    declare md5sum=
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.4alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.5alpha" "$md5sum"
 }
 
 # -- MAIN.
