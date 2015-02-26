@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # event.sh
-# Copyright 2015 D630, GPLv3
-# https://github.com/D630/event.sh
+# Copyright (C) 2015 D630, GNU GPLv3
+# <https://github.com/D630/event.sh>
 
 # -- DEBUGGING.
 
@@ -574,7 +574,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(command md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.10alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.11alpha" "$md5sum"
 }
 
 # -- MAIN.
