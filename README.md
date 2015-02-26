@@ -3,7 +3,7 @@
 #### Help
 
 ```
-event.sh v0.1.0.0alpha (95010059193b6abed6c81e9d799e60b9)
+event.sh v0.1.1.0alpha (dcae57aa82e47a93d010f1a4e714a31d)
 
 Usage:
     events.sh <options> [<arguments>]
@@ -24,7 +24,7 @@ Options:
 
 Arguments:
     <info>                  See manpage of inotifywait(1)
-                            If feed to the fifo loop:
+                            If feeding to the fifo loop:
                                 FILE %w|%:e|%f
                             or
                                 PERIOD %w|%:e|%f
