@@ -53,6 +53,13 @@ __event_check_loops ()
     return "$err"
 }
 
+__event_create_file_log ()
+{
+    command cp -bvf -- "${options[file_log]}" "${options[file_log]}"
+    __event_status 93 "${options[file_log]}"
+    > "${options[file_log]}"
+}
+
 __event_help ()
 {
     { declare h=$(</dev/fd/0) ; } <<-HELP
@@ -130,9 +137,6 @@ __event_kill ()
 
 __event_loop_fifo ()
 {
-    command cp -bvf -- "${options[file_log]}" "${options[file_log]}"
-    __event_status 93 "${options[file_log]}"
-    > "${options[file_log]}"
     __event_status 92 "${options[file_queue]}"
     [[ -p ${options[file_queue]} || -f ${options[file_queue]} ]] && command rm -v -- "${options[file_queue]}"
     command mkfifo "${options[file_queue]}"
@@ -221,18 +225,15 @@ __event_loop_period ()
     status[pid_loop_period]=$$
     __event_postpare
 
+    __event_status 96 "period" "$$"
+
     if [[ ${options[nofifo]} == nofifo ]]
     then
-        command cp -bvf -- "${options[file_log]}" "${options[file_log]}"
-        __event_status 93 "${options[file_log]}"
-        > "${options[file_log]}"
-        __event_status 96 "period" "$$"
         while command sleep ${options[delay]}
         do
             event.sh -p
         done
     else
-        __event_status 96 "period" "$$"
         #(exec event-loop-period.sh "${options[file_spool]}" "${options[file_queue]}" &)
         exec 3<>"${options[file_queue]}"
         while command sleep ${options[delay]}
@@ -429,11 +430,18 @@ __event_postpare ()
 __event_prepare ()
 {
     status[file_spool]=${options[file_spool]}
-    [[ ${status[file_queue]} || ${options[nofifo]} == nofifo ]] || {
+    if [[ ${status[file_queue]} ]]
+    then
+        :
+    elif [[ ${options[nofifo]} == nofifo ]]
+    then
+        __event_create_file_log
+    else
+        __event_create_file_log
         __event_loop_fifo
         command sleep 1
         source <(command grep "^status\[pid_loop_fifo\]=" "${options[file_spool]}")
-    }
+    fi
 }
 
 __event_status ()
@@ -574,7 +582,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(command md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.11alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.12alpha" "$md5sum"
 }
 
 # -- MAIN.
