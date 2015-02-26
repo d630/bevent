@@ -4,6 +4,28 @@
 # Copyright 2015 D630, GPLv3
 # https://github.com/D630/event.sh
 
+# -- DEBUGGING.
+
+#printf '%s (%s)\n' "$BASH_VERSION" "${BASH_VERSINFO[5]}" && exit 0
+#set -o xtrace
+#exec 2>> ~/event.sh.log
+#set -o verbose
+#set -o noexec
+#set -o errexit
+#set -o nounset
+#set -o pipefail
+#trap '(read -p "[$BASH_SOURCE:$LINENO] $BASH_COMMAND?")' DEBUG
+
+#declare vars_base=$(set -o posix ; set)
+#fgrep -v -e "$vars_base" < <(set -o posix ; set) | \
+#egrep -v -e "^BASH_REMATCH=" \
+#         -e "^OPTIND=" \
+#         -e "^REPLY=" \
+#         -e "^BASH_LINENO=" \
+#         -e "^BASH_SOURCE=" \
+#         -e "^FUNCNAME=" | \
+#less
+
 # -- FUNCTIONS.
 
 __event_check_loops ()
@@ -552,7 +574,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(command md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.9alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.10alpha" "$md5sum"
 }
 
 # -- MAIN.
