@@ -160,18 +160,35 @@ __event_loop_file ()
         #(exec event-loop-file.sh "${status[file_spool]}" "${status[file_queue]}" &) < <(printf '%s\n' "${input[@]}" | grep -f <(printf '%s\n' "${filter[@]}"))
         if [[ ${options[nofifo]} == nofifo ]]
         then
-            printf '%s\n' "${input[@]}" | \
-            grep -vf <(printf '%s\n' "${filter[@]}") | \
-            inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
-            while read -r job info
-            do
-                event.sh -fi "$info"
-                (($? == 99)) && exec event.sh -lf
-            done
+            if [[ ${events[${excludes[0]}]} ]]
+            then
+                printf '%s\n' "${input[@]}" | \
+                grep -vf <(printf '%s\n' "${filter[@]}") | \
+                inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                while read -r job info
+                do
+                    event.sh -fi "$info"
+                    (($? == 99)) && exec event.sh -lf
+                done
+            else
+                printf '%s\n' "${input[@]}" | \
+                inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                while read -r job info
+                do
+                    event.sh -fi "$info"
+                    (($? == 99)) && exec event.sh -lf
+                done
+            fi
         else
-            printf '%s\n' "${input[@]}" | \
-            grep -vf <(printf '%s\n' "${filter[@]}") | \
-            inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+            if [[ ${events[${excludes[0]}]} ]]
+            then
+                printf '%s\n' "${input[@]}" | \
+                grep -vf <(printf '%s\n' "${filter[@]}") | \
+                inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+            else
+                printf '%s\n' "${input[@]}" | \
+                inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+            fi
         fi
     fi
 }
@@ -534,7 +551,7 @@ __event_version ()
     declare md5sum
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.3alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.4alpha" "$md5sum"
 }
 
 # -- MAIN.
