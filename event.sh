@@ -2,7 +2,7 @@
 
 # event.sh
 # Copyright 2015 D630, GPLv3
-# https://github.com/D630
+# https://github.com/D630/event.sh
 
 # -- FUNCTIONS.
 
@@ -534,7 +534,7 @@ __event_version ()
     declare md5sum
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.2alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.3alpha" "$md5sum"
 }
 
 # -- MAIN.
