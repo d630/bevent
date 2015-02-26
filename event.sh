@@ -308,6 +308,8 @@ __event_main ()
 
     source "${options[file_spool]}"
 
+    declare -i err=
+
     if [[ ${functions[l]} && -z ${functions[f]}${functions[p]} ]]
     then
         __event_status 84
@@ -321,15 +323,25 @@ __event_main ()
     elif [[ ${functions[l]} && ${functions[f]} ]]
     then
         __event_check_loops
-        (($? == 110 || $? == 111)) && exit 95
-        functions=()
-        functions[0]=__event_loop_file
+        err=$?
+        if ((err == 110 || err == 111))
+        then
+            exit 95
+        else
+            functions=()
+            functions[0]=__event_loop_file
+        fi
     elif [[ ${functions[l]} && ${functions[p]} ]]
     then
         __event_check_loops
-        (($? == 101 || $? == 111)) && exit 95
-        functions=()
-        functions[0]=__event_loop_period
+        err=$?
+        if ((err == 101 || err == 111))
+        then
+            exit 95
+        else
+            functions=()
+            functions[0]=__event_loop_period
+        fi
     elif [[ ${functions[f]} ]]
     then
         if [[ ${functions[i]} ]]
@@ -522,7 +534,7 @@ __event_version ()
     declare md5sum
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.1alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.2alpha" "$md5sum"
 }
 
 # -- MAIN.
