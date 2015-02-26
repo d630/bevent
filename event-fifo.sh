@@ -26,7 +26,7 @@ do
         elif (($err == 100))
         then
             (exec event.sh -lp &)
-            sleep 2
+            command sleep 2
             (exec event.sh -lf &)
             printf '%s\n' "$(date +%s) ${0}:Info:101: Stopping loop 'fifo' with pid: '${$}'"
         fi

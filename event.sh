@@ -90,30 +90,30 @@ __event_kill ()
 {
     [[ -p ${status[file_queue]} ]] && {
         __event_status 88 "${status[file_queue]}"
-        rm -v -- "${status[file_queue]}"
+        command rm -v -- "${status[file_queue]}"
     }
 
     [[ ${status[file_spool]} ]] && {
         __event_status 89 "${status[file_spool]}"
-        sed -i '/^status\[/d' "${status[file_spool]}"
+        command sed -i '/^status\[/d' "${status[file_spool]}"
     }
 
     declare -i p=
     for p in ${status[pid_loop_file]} ${status[pid_loop_period]} ${status[pid_loop_queue]}
     do
         __event_status 90 "$p"
-        pkill -P "$p"
+        command pkill -P "$p"
     done
 }
 
 __event_loop_fifo ()
 {
-    cp -bvf -- "${options[file_log]}" "${options[file_log]}"
+    command cp -bvf -- "${options[file_log]}" "${options[file_log]}"
     __event_status 93 "${options[file_log]}"
     > "${options[file_log]}"
     __event_status 92 "${options[file_queue]}"
-    [[ -p ${options[file_queue]} || -f ${options[file_queue]} ]] && rm -v -- "${options[file_queue]}"
-    mkfifo "${options[file_queue]}"
+    [[ -p ${options[file_queue]} || -f ${options[file_queue]} ]] && command rm -v -- "${options[file_queue]}"
+    command mkfifo "${options[file_queue]}"
     status[file_queue]=${options[file_queue]}
     (exec event-fifo.sh "$time_curr" "${options[file_log]}" "${options[file_spool]}" "${status[file_queue]}" &)
 }
@@ -161,8 +161,8 @@ __event_loop_file ()
             if [[ ${events[${excludes[0]}]} ]]
             then
                 printf '%s\n' "${input[@]}" | \
-                grep -vf <(printf '%s\n' "${filter[@]}") | \
-                inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                command grep -vf <(printf '%s\n' "${filter[@]}") | \
+                command inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
                 while read -r job info
                 do
                     event.sh -fi "$info"
@@ -170,7 +170,7 @@ __event_loop_file ()
                 done
             else
                 printf '%s\n' "${input[@]}" | \
-                inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                command inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
                 while read -r job info
                 do
                     event.sh -fi "$info"
@@ -181,11 +181,11 @@ __event_loop_file ()
             if [[ ${events[${excludes[0]}]} ]]
             then
                 printf '%s\n' "${input[@]}" | \
-                grep -vf <(printf '%s\n' "${filter[@]}") | \
-                inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+                command grep -vf <(printf '%s\n' "${filter[@]}") | \
+                command inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
             else
                 printf '%s\n' "${input[@]}" | \
-                inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+                command inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
             fi
         fi
     fi
@@ -201,11 +201,11 @@ __event_loop_period ()
 
     if [[ ${options[nofifo]} == nofifo ]]
     then
-        cp -bvf -- "${options[file_log]}" "${options[file_log]}"
+        command cp -bvf -- "${options[file_log]}" "${options[file_log]}"
         __event_status 93 "${options[file_log]}"
         > "${options[file_log]}"
         __event_status 96 "period" "$$"
-        while sleep ${options[delay]}
+        while command sleep ${options[delay]}
         do
             event.sh -p
         done
@@ -213,7 +213,7 @@ __event_loop_period ()
         __event_status 96 "period" "$$"
         #(exec event-loop-period.sh "${options[file_spool]}" "${options[file_queue]}" &)
         exec 3<>"${options[file_queue]}"
-        while sleep ${options[delay]}
+        while command sleep ${options[delay]}
         do
             printf '%s %d\n' "PERIOD" "$(date +%s)" 1>&3
         done
@@ -278,7 +278,7 @@ __event_main ()
         options[file_queue]=${options[file_queue]:-${TMPDIR:-/tmp}/event.queue}
     fi
 
-    mkdir -vp \
+    command mkdir -vp \
         "${options[file_log]%/*}" \
         "${options[file_spool]%/*}" \
         "${options[file_queue]%/*}"
@@ -389,7 +389,7 @@ __event_postpare ()
 {
     if ((${#spool[@]} == 0))
     then
-        sed -i '/^status\[/d' "${status[file_spool]}"
+        command sed -i '/^status\[/d' "${status[file_spool]}"
     else
         printf '%s\n' "${spool[@]}" > "${options[file_spool]}"
     fi
@@ -409,8 +409,8 @@ __event_prepare ()
     status[file_spool]=${options[file_spool]}
     [[ ${status[file_queue]} || ${options[nofifo]} == nofifo ]] || {
         __event_loop_fifo
-        sleep 1
-        source <(grep "^status\[pid_loop_fifo\]=" "${options[file_spool]}")
+        command sleep 1
+        source <(command grep "^status\[pid_loop_fifo\]=" "${options[file_spool]}")
     }
 }
 
@@ -550,9 +550,9 @@ __event_sub_period ()
 __event_version ()
 {
     declare md5sum=
-    read -r md5sum _ < <(md5sum "$BASH_SOURCE")
+    read -r md5sum _ < <(command md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.8alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.9alpha" "$md5sum"
 }
 
 # -- MAIN.
