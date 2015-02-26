@@ -138,10 +138,8 @@ __event_loop_file ()
     shopt -s extglob
 
     printf -v events_names '%s\n' "${!events[@]}"
-    printf -v files '%s\n' "${events_names//+([0-9])_@(command|exclude|name|period|symbol|time_last)/}"
-    printf -v excludes '%s\n' "${events_names//+([0-9])_@(command|file|name|period|symbol|time_last)/}"
-    files=($files)
-    excludes=($excludes)
+    files=(${events_names//+([0-9])_@(command|exclude|name|period|symbol|time_last)/})
+    excludes=(${events_names//+([0-9])_@(command|file|name|period|symbol|time_last)/})
 
     shopt -u extglob
 
@@ -473,12 +471,9 @@ __event_sub_file ()
     shopt -s extglob
 
     printf -v events_names '%s\n' "${!events[@]}"
-    printf -v files '%s\n' "${events_names//+([0-9])_@(command|exclude|name|period|symbol|time_last)/}"
-    printf -v symbols '%s\n' "${events_names//+([0-9])_@(command|exclude|file|name|period|time_last)/}"
-    printf -v commands '%s\n' "${commands//+([0-9])_@(exclude|file|name|period|symbol|time_last)/}"
-    commands=($commands)
-    files=($files)
-    symbols=($symbols)
+    files=(${events_names//+([0-9])_@(command|exclude|name|period|symbol|time_last)/})
+    symbols=(${events_names//+([0-9])_@(command|exclude|file|name|period|time_last)/})
+    commands=(${commands//+([0-9])_@(exclude|file|name|period|symbol|time_last)/})
 
     shopt -u extglob
 
@@ -516,9 +511,8 @@ __event_sub_period ()
 
     shopt -s extglob
 
-    printf -v commands '%s\n' "${!events[@]}"
-    printf -v commands '%s\n' "${commands//+([0-9])_@(exclude|file|name|period|symbol|time_last)/}"
-    commands=($commands)
+    commands=(${!events[@]})
+    commands=(${commands//+([0-9])_@(exclude|file|name|period|symbol|time_last)/})
 
     ((${#commands[@]} == 0)) && __event_status 82
 
@@ -551,7 +545,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.5alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.1.6alpha" "$md5sum"
 }
 
 # -- MAIN.
