@@ -55,7 +55,7 @@ Options:
 
 Arguments:
     <info>                  See manpage of inotifywait(1)
-                            If feed to the fifo loop:
+                            If feeding to the fifo loop:
                                 FILE %w|%:e|%f
                             or
                                 PERIOD %w|%:e|%f
@@ -522,7 +522,7 @@ __event_version ()
     declare md5sum
     read -r md5sum _ < <(md5sum "$BASH_SOURCE")
 
-    printf '%s %s\n'  "v0.1.0.0alpha" "(${md5sum})"
+    printf '%s %s\n'  "v0.1.1.0alpha" "(${md5sum})"
 }
 
 # -- MAIN.
