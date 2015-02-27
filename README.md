@@ -1,14 +1,16 @@
-### event.sh v0.1.1.0alpha [GNU GPLv3]
+### event.sh v0.1.2.0alpha [GNU GPLv3]
 
 #### Help
 
 ```
-event.sh v0.1.1.0alpha (dcae57aa82e47a93d010f1a4e714a31d)
+event.sh v0.1.2.0alpha (0c7d4dabbcdf434f7235e11e89c0b4df)
 
 Usage:
     events.sh <options> [<arguments>]
 
 Options:
+    -c                      Do not use a fifo queue, instead work with
+                            coprocesses.
     -f                      Work with file events
     -h                      Show this instruction
     -i <info>               Input for postprocessing the inotifywait file
@@ -23,12 +25,12 @@ Options:
     -v                      Print version
 
 Arguments:
-    <info>                  See manpage of inotifywait(1)
+    <info>                  See Manpage of inotifywait(1)
                             If feeding to the fifo loop:
                                 FILE %w|%:e|%f
                             or
                                 PERIOD %w|%:e|%f
-                            With option -n only:
+                            In a another case only:
                                 %w|%:e|%f
 
 Environment variables:
@@ -45,6 +47,7 @@ Configs:
     events[<int>_name]      Name of the connected subscripts
     events[<int>_period]    Period in seconds
     events[<int>_symbol]    Names of the inotify events. Delimiter: colon
+    options[coproc]         Like option -c
     options[delay]          Delay of the time loop in seconds
     options[file_log]       Logfile
     options[file_queue]     Queuefile (fifo)
