@@ -2,7 +2,8 @@ options[file_log]=${X_XDG_LOG_HOME}/event.log
 options[file_spool]=${X_XDG_LIB_DIR}/event.spool
 options[file_queue]=${TMPDIR:-/tmp}/event.queue
 options[delay]=60
-options[nofifo]=
+#options[nofifo]=nofifo
+#options[coproc]=coproc
 
 events[0_name]=clipbored-restart
 events[0_command]=clipbored-restart.sh

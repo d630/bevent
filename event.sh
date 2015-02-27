@@ -69,6 +69,8 @@ Usage:
     events.sh <options> [<arguments>]
 
 Options:
+    -c                      Do not use a fifo queue, instead work with
+                            coprocesses.
     -f                      Work with file events
     -h                      Show this instruction
     -i <info>               Input for postprocessing the inotifywait file
@@ -83,12 +85,12 @@ Options:
     -v                      Print version
 
 Arguments:
-    <info>                  See manpage of inotifywait(1)
+    <info>                  See Manpage of inotifywait(1)
                             If feeding to the fifo loop:
                                 FILE %w|%:e|%f
                             or
                                 PERIOD %w|%:e|%f
-                            With option -n only:
+                            In a another case only:
                                 %w|%:e|%f
 
 Environment variables:
@@ -105,6 +107,7 @@ Configs:
     events[<int>_name]      Name of the connected subscripts
     events[<int>_period]    Period in seconds
     events[<int>_symbol]    Names of the inotify events. Delimiter: colon
+    options[coproc]         Like option -c
     options[delay]          Delay of the time loop in seconds
     options[file_log]       Logfile
     options[file_queue]     Queuefile (fifo)
@@ -128,11 +131,45 @@ __event_kill ()
     }
 
     declare -i p=
-    for p in ${status[pid_loop_file]} ${status[pid_loop_period]} ${status[pid_loop_queue]}
+    for p in ${status[pid_loop_file_coproc]} ${status[pid_loop_period_coproc]} ${status[pid_loop_file]} ${status[pid_loop_period]} ${status[pid_loop_queue]}
     do
         __event_status 90 "$p"
-        command pkill -P "$p"
+        command pkill -TERM -P "$p"
     done
+}
+
+__event_loop_coproc ()
+{
+    exec 4> \
+    >( \
+        declare \
+            job= \
+            info=
+
+        declare -i err=
+
+        while read -r job info
+        do
+            if [[ $job == PERIOD ]]
+            then
+                event.sh -p
+            elif [[ $job == FILE ]]
+            then
+                event.sh -fi "$info"
+                err=$?
+                ((err == 100)) && {
+                    source "${status[file_spool]}"
+                    (exec event.sh -lfpc &)
+                    __event_kill
+                }
+            else
+                printf '%s\n' "$(date +%s) ${0}:Error:97: Job is unknown: '${job}'"
+            fi
+        done
+        unset -v \
+            job \
+            info
+    )
 }
 
 __event_loop_fifo ()
@@ -203,6 +240,32 @@ __event_loop_file ()
                     (($? == 99)) && exec event.sh -lf
                 done
             fi
+        elif [[ ${options[coproc]} == coproc ]]
+        then
+            {
+                coproc _loop_file {
+                    if [[ ${events[${excludes[0]}]} ]]
+                    then
+                        printf '%s\n' "${input[@]}" | \
+                        command grep -vf <(printf '%s\n' "${filter[@]}") | \
+                        exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                        while read -r
+                        do
+                            printf '%s\n' "$REPLY"
+                        done
+                    else
+                        printf '%s\n' "${input[@]}" | \
+                        exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - |\
+                        while read -r
+                        do
+                            printf '%s\n' "$REPLY"
+                        done
+                    fi
+                } 1>&3 2>&1
+            } 3>&4
+            status[pid_loop_file_coproc]=$_loop_file_PID
+            __event_status 96 "file (coproc)" "$_loop_file_PID"
+            printf '%s\n' "status[pid_loop_file_coproc]=$_loop_file_PID" >> "${status[file_spool]}"
         else
             if [[ ${events[${excludes[0]}]} ]]
             then
@@ -229,14 +292,27 @@ __event_loop_period ()
 
     if [[ ${options[nofifo]} == nofifo ]]
     then
-        while command sleep ${options[delay]}
+        while command sleep "${options[delay]}"
         do
             event.sh -p
         done
+    elif [[ ${options[coproc]} == coproc ]]
+    then
+        {
+            coproc _loop_period {
+                while command sleep "${options[delay]}"
+                do
+                    printf '%s\n' "PERIOD"
+                done
+            } 1>&3 2>&1
+        } 3>&4
+        status[pid_loop_period_coproc]=$_loop_period_PID
+        __event_status 96 "period (coproc)" "$_loop_period_PID"
+        printf '%s\n' "status[pid_loop_period_coproc]=$_loop_period_PID" >> "${status[file_spool]}"
     else
         #(exec event-loop-period.sh "${options[file_spool]}" "${options[file_queue]}" &)
         exec 3<>"${options[file_queue]}"
-        while command sleep ${options[delay]}
+        while command sleep "${options[delay]}"
         do
             printf '%s %d\n' "PERIOD" "$(date +%s)" 1>&3
         done
@@ -310,13 +386,14 @@ __event_main ()
 
     declare \
         opt= \
-        opts=:fhi:klnpv
+        opts=:cfhi:klnpv
 
     declare -i j=$(($# - 1))
 
     while getopts $opts opt
     do
         case $opt in
+            c)  options[coproc]=coproc              ;;
             f)  functions[f]=$((j++))               ;;
             i)
                 if [[ $OPTARG == -* ]]
@@ -339,6 +416,8 @@ __event_main ()
         esac
     done
 
+    [[ ${options[coproc]} == coproc && ${options[nofifo]} == nofifo ]] && __event_status 103
+
     functions[${functions[f]:--}]=__event_sub_file
     functions[${functions[k]:--}]=__event_kill
     functions[${functions[l]:--}]=__event_loop
@@ -357,9 +436,19 @@ __event_main ()
         functions[0]=__event_kill
     elif [[ ${functions[l]} && ${functions[f]} && ${functions[p]} ]]
     then
-        __event_status 98
+        __event_check_loops
+        err=$?
+        if ((err == 100))
+        then
+            functions=()
+            functions[0]=__event_loop_file
+            functions[1]=__event_loop_period
+        else
+            exit 95
+        fi
     elif [[ ${functions[l]} && ${functions[f]} ]]
     then
+        [[ ${options[coproc]} ]] && __event_status 104
         __event_check_loops
         err=$?
         if ((err == 110 || err == 111))
@@ -371,6 +460,7 @@ __event_main ()
         fi
     elif [[ ${functions[l]} && ${functions[p]} ]]
     then
+        [[ ${options[coproc]} ]] && __event_status 104
         __event_check_loops
         err=$?
         if ((err == 101 || err == 111))
@@ -380,14 +470,22 @@ __event_main ()
             functions=()
             functions[0]=__event_loop_period
         fi
-    elif [[ ${functions[f]} ]]
+    elif [[ (${functions[f]} && ${functions[p]}) || ${functions[f]} ]]
     then
+        options[coproc]=
+        options[nofifo]=
+        options[noloop]=noloop
         if [[ ${functions[i]} ]]
         then
             functions[${functions[f]}]="__event_sub_file ${functions[i]}"
         else
             __event_status 85
         fi
+    elif [[ ${functions[p]} ]]
+    then
+        options[coproc]=
+        options[nofifo]=
+        options[noloop]=noloop
     fi
 
     unset -v \
@@ -405,7 +503,7 @@ __event_main ()
         [[ ${functions[$opt]} ]] && ${functions[$opt]}
     done
 
-    return 0
+    wait
 }
 
 __event_postpare ()
@@ -430,12 +528,18 @@ __event_postpare ()
 __event_prepare ()
 {
     status[file_spool]=${options[file_spool]}
-    if [[ ${status[file_queue]} ]]
+    if [[ ${status[file_queue]} || ${options[noloop]} ]]
     then
         :
     elif [[ ${options[nofifo]} == nofifo ]]
     then
         __event_create_file_log
+    elif [[ ${options[coproc]} == coproc ]]
+    then
+        [[ ${status[pid_loop_period_coproc]} || ${status[pid_loop_file_coproc]} ]] || {
+            __event_create_file_log
+            __event_loop_coproc
+        }
     else
         __event_create_file_log
         __event_loop_fifo
@@ -470,6 +574,8 @@ case $1 in
     100) printf '%s\n' "${time_curr} ${0}:Info:${1}: Restarting loops 'file' and 'period' with pids: '${2}','${3}'" 1>&2 ; exit "$1" ;;
     101) printf '%s\n' "${time_curr} ${0}:Info:${1}: Stopping loop 'fifo' with pid: '${2}'" 1>&2 ; exit "$1"                         ;;
     102) printf '%s\n' "${time_curr} ${0}:Error:${1}: Event symbols missing" 1>&2 ; exit "$1"                                        ;;
+    103) printf '%s\n' "${time_curr} ${0}:Error:${1}: Options '-c' cannot be combined with '-n' in one commandline" 1>&2 ; exit "$1" ;;
+    104) printf '%s\n' "${time_curr} ${0}:Error:${1}: Option '-c' must be combined with '-lfp' in one commandline" 1>&2 ; exit "$1"  ;;
 esac
 
 __event_sub_file ()
@@ -490,12 +596,17 @@ __event_sub_file ()
     IFS='|' read -r path symbol file <<< "$@"
 
     [[ $symbol == DELETE_SELF ]] && {
-        __event_kill
-        if [[ ${status[pid_loop_period]} ]]
+        if [[ ${status[pid_loop_file_coproc]} || ${status[pid_loop_period_coproc]} ]]
         then
-            __event_status 100 "${status[pid_loop_file]}" "${status[pid_loop_period]}"
+            __event_status 100 "${status[pid_loop_file_coproc]}" "${status[pid_loop_period_coproc]}"
         else
-            __event_status 99 "${status[pid_loop_file]}"
+            __event_kill
+            if [[ ${status[pid_loop_period]} ]]
+            then
+                __event_status 100 "${status[pid_loop_file]}" "${status[pid_loop_period]}"
+            else
+                __event_status 99 "${status[pid_loop_file]}"
+            fi
         fi
     }
 
@@ -518,6 +629,7 @@ __event_sub_file ()
     then
         __event_status 102
     else
+        status[time_run_last_file]=$time_curr
         while IFS='_' read -r event_number _
         do
             [[ ${events[${event_number}_file]} =~ $path ]] && {
@@ -533,6 +645,7 @@ __event_sub_file ()
             }
         done < <(printf '%s\n' "${files[@]}")
         wait
+        __event_postpare
     fi
 }
 
@@ -549,7 +662,7 @@ __event_sub_period ()
     shopt -s extglob
 
     commands=(${!events[@]})
-    commands=(${commands//+([0-9])_@(exclude|file|name|period|symbol|time_last)/})
+    commands=(${commands[@]//+([0-9])_@(exclude|file|name|period|symbol|time_last)/})
 
     ((${#commands[@]} == 0)) && __event_status 82
 
@@ -560,6 +673,7 @@ __event_sub_period ()
         time_diff=$((time_curr - ${events[${event_number}_time_last]:-0}))
         if ((${events[${event_number}_period]}))
         then
+            status[time_run_last_period]=$time_curr
             if ((time_diff >= ${events[${event_number}_period]}))
             then
                 __event_status 94 "${event_number}" "${events[${event_number}_command]}"
@@ -582,7 +696,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(command md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.1.12alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.2.0alpha" "$md5sum"
 }
 
 # -- MAIN.
