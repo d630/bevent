@@ -212,20 +212,19 @@ __event_loop_file ()
     else
         while IFS='_' read -r event_number _
         do
-            filter+=($(printf '%s\n' "${events[${event_number}_exclude]//;/$'\n'}"))
-            input+=($(printf '%s\n' "${events[${event_number}_file]//:/$'\n'}"))
+            filter+=(${events[${event_number}_exclude]//;/$'\n'})
+            input+=(${events[${event_number}_file]//:/ })
         done < <(printf '%s\n' "${files[@]}")
         status[pid_loop_file]=$$
         __event_postpare
         __event_status 96 "file (inotifywait)" "$$"
-        #(exec event-loop-file.sh "${status[file_spool]}" "${status[file_queue]}" &) < <(printf '%s\n' "${input[@]}" | grep -f <(printf '%s\n' "${filter[@]}"))
         if [[ ${options[nofifo]} == nofifo ]]
         then
             if [[ ${events[${excludes[0]}]} ]]
             then
                 printf '%s\n' "${input[@]}" | \
                 command grep -vf <(printf '%s\n' "${filter[@]}") | \
-                command inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
                 while read -r job info
                 do
                     event.sh -fi "$info"
@@ -233,7 +232,7 @@ __event_loop_file ()
                 done
             else
                 printf '%s\n' "${input[@]}" | \
-                command inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
+                exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - | \
                 while read -r job info
                 do
                     event.sh -fi "$info"
@@ -271,10 +270,10 @@ __event_loop_file ()
             then
                 printf '%s\n' "${input[@]}" | \
                 command grep -vf <(printf '%s\n' "${filter[@]}") | \
-                command inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+                exec inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
             else
                 printf '%s\n' "${input[@]}" | \
-                command inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
+                exec inotifywait -qm -o "${status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
             fi
         fi
     fi
@@ -696,7 +695,7 @@ __event_version ()
     declare md5sum=
     read -r md5sum _ < <(command md5sum "$BASH_SOURCE")
 
-    printf '%s (%s)\n'  "v0.1.2.0alpha" "$md5sum"
+    printf '%s (%s)\n'  "v0.1.2.1alpha" "$md5sum"
 }
 
 # -- MAIN.
