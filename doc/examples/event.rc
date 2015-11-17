@@ -1,39 +1,43 @@
-options[file_log]=${X_XDG_LOG_HOME}/event.log
-options[file_spool]=${X_XDG_LIB_DIR}/event.spool
-options[file_queue]=${TMPDIR:-/tmp}/event.queue
-options[delay]=60
-#options[nofifo]=nofifo
-#options[coproc]=coproc
+Options[file_log]=/home/user1/src/event.sh/event.log
+Options[file_spool]=/home/user1/src/event.sh/event.spool
+Options[file_queue]=/home/user1/src/event.sh/event.queue
+Options[delay]=10
+#Options[nofifo]=nofifo
+#Options[coproc]=coproc
 
-events[0_name]=clipbored-restart
-events[0_command]=clipbored-restart.sh
-events[0_period]=60
+#Events[0_name]=test
+#Events[0_command]=ls
+#Events[0_period]=20
 
-events[1_name]=mail-restart
-events[1_command]=mail-restart.sh
-events[1_period]=300
+Events[0_name]=clipbored-restart
+Events[0_command]=clipbored-restart.sh
+Events[0_period]=60
 
-events[2_name]=feedcacher
-events[2_command]=feedcacher.sh
-events[2_period]=3600
+Events[1_name]=mail-restart
+Events[1_command]=mail-restart.sh
+Events[1_period]=300
 
-events[3_name]=backup-squid-urls
-events[3_command]=backup-squid-urls.sh
-events[3_file]=/var/log/squid3/access.log
-events[3_period]=
-events[3_symbol]=MODIFY
-events[3_exclude]=
+Events[2_name]=feedcacher
+Events[2_command]=feedcacher.sh
+Events[2_period]=3600
 
-events[4_name]=mailspool-notify
-events[4_command]=mailspool-notify.sh
-events[4_file]=${X_XDG_MAIL_DIR}/Maildir/system-mailspool/INBOX/IN/new/
-events[4_period]=
-events[4_symbol]=MOVED_TO
-events[4_exclude]=
+Events[3_name]=backup-squid-urls
+Events[3_command]=backup-squid-urls.sh
+Events[3_file]=/var/log/squid3/access.log
+Events[3_period]=
+Events[3_symbol]=MODIFY
+Events[3_exclude]=
 
-events[5_name]=mlr
-events[5_command]=mlr.sh
-events[5_file]=${X_XDG_LOG_HOME}/
-events[5_period]=
-events[5_symbol]=MODIFY
-events[5_exclude]="event.log;\.git"
+Events[4_name]=mailspool-notify
+Events[4_command]=mailspool-notify.sh
+Events[4_file]=${X_XDG_MAIL_DIR}/Maildir/system-mailspool/INBOX/IN/new/
+Events[4_period]=
+Events[4_symbol]=MOVED_TO
+Events[4_exclude]=
+
+Events[5_name]=mlr
+Events[5_command]=mlr.sh
+Events[5_file]=${X_XDG_LOG_HOME}/
+Events[5_period]=
+Events[5_symbol]=MODIFY
+Events[5_exclude]="event.log;\.git"
