@@ -7,8 +7,8 @@ Usage:
 Options:
         -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
-        -i <info>               Input for postprocessing the inotifywait(1) file
-                                loop with -f
+        -i <info>               Input for postprocessing the inotifywait(1) out
+                                put. Used with option -f
         -k                      Kill any coprocess and purge the spool file
         -C                      Indicate to set up an event loop in a coprocess
                                 Used with options -[fp]
@@ -20,20 +20,28 @@ Arguments:
                                 %w|%:e|%f
 
 Environment variables:
-        EVENT_LOG_FILE          ${XDG_DATA_HOME}/event.log
-        EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event.rc
-        EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event.spool
+        EVENT_LOG_FILE          ${XDG_DATA_HOME}/event/event.log
+        EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event/event.rc
+        EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event/event.spool
 
 Configs:
         Events[<int>_command]   Command list. Executed via setsid(1)
-        Events[<int>_exclude]   BRE used with grep(1) to skip files inside
-                                the watched folder. Delimiter: semicolon
-        Events[<int>_file]      Watched filenames. Delimiter: colon
+        Events[<int>_exclude]   BRE used with grep(1) to select non-matching
+                                files in a watched folder. Delimiter: semicolon
+                                (;)
+        Events[<int>_file]      Watched filenames. Delimiter: pipe (|)
         Events[<int>_name]      Name of the connected subscripts
         Events[<int>_period]    Period in seconds
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
+                                (:)
         Options[delay]          Delay of the time loop in seconds
         Options[file_log]       Logfile
         Options[file_spool]     Spoolfile
 ```
 
+##### TODO
+
+- improve handling/parsing of [<int>_exlude]
+- improve parsing of [<int>_file]
+- thing about new configs
+- etc.

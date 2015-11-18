@@ -87,12 +87,14 @@ Environment variables:
 
 Configs:
         Events[<int>_command]   Command list. Executed via setsid(1)
-        Events[<int>_exclude]   BRE used with grep(1) to skip files inside
-                                the watched folder. Delimiter: semicolon
-        Events[<int>_file]      Watched filenames. Delimiter: colon
+        Events[<int>_exclude]   BRE used with grep(1) to select non-matching
+                                files in a watched folder. Delimiter: semicolon
+                                (;)
+        Events[<int>_file]      Watched filenames. Delimiter: pipe (|)
         Events[<int>_name]      Name of the connected subscripts
         Events[<int>_period]    Period in seconds
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
+                                (:)
         Options[delay]          Delay of the time loop in seconds
         Options[file_log]       Logfile
         Options[file_spool]     Spoolfile
@@ -153,14 +155,14 @@ Event::CoprocFile ()
                                 ${Events[${event_number}_exclude]//;/$'\n'}
                         )
                         input+=(
-                                ${Events[${event_number}_file]//:/ }
+                                ${Events[${event_number}_file]//|/ }
                         )
                 done < <(
                         printf '%s\n' "${files[@]}"
                 )
                 Event::Postpare
                 coproc _loop_file {
-                        trap 'Event::Kill' INT TERM QUIT EXIT
+                        #trap 'Event::Kill' INT TERM QUIT EXIT
                         if
                                 [[ -n ${Events[${excludes[0]}]} ]]
                         then
@@ -171,6 +173,7 @@ Event::CoprocFile ()
                         else
                                 printf '%s\n' "${input[@]}"
                         fi \
+                        | tee >(Event::Status 88 $(</dev/fd/0)) \
                         | exec inotifywait -qm --format '%w|%:e|%f' --fromfile - \
                         | {
                                 while
@@ -187,7 +190,7 @@ Event::CoprocFile ()
                         }
                 }
                 Status[pid_loop_file_coproc]=$_loop_file_PID
-                Event::Status 96 "file (coproc)" "$_loop_file_PID"
+                Event::Status 96 "file" "$_loop_file_PID"
                 printf 'Status[pid_loop_file_coproc]=%s\n' "$_loop_file_PID" >> "${Status[file_spool]}"
         else
                 Event::Status 83
@@ -200,7 +203,7 @@ Event::CoprocPeriod ()
         Event::Postpare
 
         coproc _loop_period {
-                trap 'Event::Kill' INT TERM QUIT EXIT
+                #trap 'Event::Kill' INT TERM QUIT EXIT
                 while
                         command sleep "${Options[delay]}"
                 do
@@ -467,6 +470,7 @@ Event::Status ()
         85) printf -v s '%s %s:Error:%s: No event information specified\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                        ;;
         86) printf -v s '%s %s:Error:%s: Option -%s requires an argument\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                  ;;
         87) printf -v s '%s %s:Error:%s: Wrong argument: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                               ;;
+        88) printf      '%s %s:Info:%s: Watching: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "${*:2}"                                                  ;;
         89) printf      '%s %s:Info:%s: Removing status information in spool: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                          ;;
         90) printf      '%s %s:Info:%s: Killing pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                                   ;;
         91) printf -v s '%s %s:Error:%s: Conf File does not exist or is not a regular file: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"            ;;
@@ -478,7 +482,7 @@ Event::Status ()
         99) printf -v s '%s %s:Info:%s: Restarting coproc (file) with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                             ;;
         100) printf -v s '%s %s:Info:%s: Restarting coprocs (file, period) with pids: %s, %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"         ;;
         102) printf -v s '%s %s:Error:%s: Event symbols missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                                ;;
-        esac
+        esac 1>&2
 
         [[ -z $s ]] || {
                 printf '%s' "$s" 1>&2
@@ -558,8 +562,8 @@ Event::Files ()
                         [[ ${Events[${event_number}_file]} =~ $path ]] && {
                                 for s in ${Events[${event_number}_symbol]//:/ }
                                 do
-                                        [[ $symbol =~ $s ]] && {
-                                                Event::Status 94 "$event_number" "${Events[${event_number}_command]}"
+                                        [[ $symbol == $s ]] && {
+                                                Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
                                                 ( command setsid "${Events[${event_number}_command]}" & )
                                                 break
                                         }
@@ -605,7 +609,7 @@ Event::Periods ()
                         if
                                 (( time_diff >= ${Events[${event_number}_period]} ))
                         then
-                                Event::Status 94 "${event_number}" "${Events[${event_number}_command]}"
+                                Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
                                 ( command setsid "${Events[${event_number}_command]}" & )
                                 spool+=(
                                         "Events[${event_number}_time_last]=${time_curr}"
@@ -628,7 +632,7 @@ Event::Periods ()
 
 Event::Version ()
 {
-        printf 'v%s\n' "0.1.6"
+        printf 'v%s\n' "0.1.7"
 }
 
 # -- MAIN.

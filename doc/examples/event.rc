@@ -1,17 +1,12 @@
+#!/usr/bin/env bash
+
 Options[file_log]=/home/user1/src/event.sh/event.log
 Options[file_spool]=/home/user1/src/event.sh/event.spool
-Options[file_queue]=/home/user1/src/event.sh/event.queue
 Options[delay]=10
-#Options[nofifo]=nofifo
-#Options[coproc]=coproc
-
-#Events[0_name]=test
-#Events[0_command]=ls
-#Events[0_period]=20
 
 Events[0_name]=clipbored-restart
 Events[0_command]=clipbored-restart.sh
-Events[0_period]=60
+Events[0_period]=50
 
 Events[1_name]=mail-restart
 Events[1_command]=mail-restart.sh
@@ -41,3 +36,5 @@ Events[5_file]=${X_XDG_LOG_HOME}/
 Events[5_period]=
 Events[5_symbol]=MODIFY
 Events[5_exclude]="event.log;\.git"
+
+# vim: set ts=8 sw=8 tw=0 et :
