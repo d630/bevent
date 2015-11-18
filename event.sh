@@ -68,8 +68,8 @@ Usage:
 Options:
         -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
-        -i <info>               Input for postprocessing the inotifywait(1) file
-                                loop with -f
+        -i <info>               Input for postprocessing the inotifywait(1) out
+                                put. Used with option -f
         -k                      Kill any coprocess and purge the spool file
         -C                      Indicate to set up an event loop in a coprocess
                                 Used with options -[fp]
@@ -81,9 +81,9 @@ Arguments:
                                 %w|%:e|%f
 
 Environment variables:
-        EVENT_LOG_FILE          ${XDG_DATA_HOME}/event.log
-        EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event.rc
-        EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event.spool
+        EVENT_LOG_FILE          ${XDG_DATA_HOME}/event/event.log
+        EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event/event.rc
+        EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event/event.spool
 
 Configs:
         Events[<int>_command]   Command list. Executed via setsid(1)
@@ -241,7 +241,7 @@ Event::Main ()
                 fi
         else
                 if
-                        [[ -f ${Options[file_rc]:=${XDG_CONFIG_HOME}/event.rc} ]]
+                        [[ -f ${Options[file_rc]:=${XDG_CONFIG_HOME}/event/event.rc} ]]
                 then
                         source "${Options[file_rc]}"
                 else
@@ -255,7 +255,7 @@ Event::Main ()
                 Options[file_log]=$EVENT_LOG_FILE
                 #unset -v EVENT_LOG_FILE
         else
-                Options[file_log]=${Options[file_log]:-${XDG_DATA_HOME}/event.log}
+                Options[file_log]=${Options[file_log]:-${XDG_DATA_HOME}/event/event.log}
         fi
 
         if
@@ -264,7 +264,7 @@ Event::Main ()
                 Options[file_spool]=$EVENT_SPOOL_FILE
                 #unset -v EVENT_SPOOL_FILE
         else
-                Options[file_spool]=${Options[file_spool]:-${XDG_DATA_HOME}/event.spool}
+                Options[file_spool]=${Options[file_spool]:-${XDG_DATA_HOME}/event/event.spool}
         fi
 
         command mkdir -vp -- \
