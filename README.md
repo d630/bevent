@@ -5,17 +5,15 @@ Usage:
         events.sh <options> [<arguments>]
 
 Options:
-        -c                      Do not use a fifo queue, when initiating an
-                                event loop. Instead, work with coprocesses
-        -f                      Work with file events
+        -C                      Use a coprocess, when initiating an event loop
+        -F                      Use a fifo, when initiating an event loop
+        -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
-        -i <info>               Input for postprocessing the inotifywait file
+        -i <info>               Input for postprocessing the inotifywait(1) file
                                 loop with -f
         -k                      Kill any loop and purge the spool file
         -l                      Indicate to set up an event loop. Used with
                                 options -[fp]
-        -n                      Do not use a fifo queue, when initiating an
-                                event loop
         -p                      Work with time events having periods configured
         -v                      Print version
 
@@ -44,10 +42,9 @@ Configs:
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
         Options[coproc]         Like option -c
         Options[delay]          Delay of the time loop in seconds
+        Options[fifo]           Like option -F
         Options[file_log]       Logfile
         Options[file_queue]     Queuefile (fifo)
         Options[file_spool]     Spoolfile
-        Options[nofifo]         Like option -n
-
 ```
 
