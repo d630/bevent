@@ -5,8 +5,6 @@ Usage:
         events.sh <options> [<arguments>]
 
 Options:
-        #-C                     Use a coprocess, when initiating an event loop
-        -F                      Use a fifo, when initiating an event loop
         -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
         -i <info>               Input for postprocessing the inotifywait(1) file
@@ -28,7 +26,6 @@ Arguments:
 
 Environment variables:
         EVENT_LOG_FILE          ${XDG_DATA_HOME}/event.log
-        EVENT_QUEUE_FILE        ${TMPDIR:-/tmp}/event.queue
         EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event.rc
         EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event.spool
 
@@ -40,11 +37,8 @@ Configs:
         Events[<int>_name]      Name of the connected subscripts
         Events[<int>_period]    Period in seconds
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
-        #Options[coproc]        Like option -C
         Options[delay]          Delay of the time loop in seconds
-        Options[fifo]           Like option -F
         Options[file_log]       Logfile
-        Options[file_queue]     Queuefile (fifo)
         Options[file_spool]     Spoolfile
 ```
 

@@ -33,15 +33,6 @@ Event::CheckLoops ()
         typeset -i err=1
 
         if
-                [[
-                        ${Options[file_queue]} == ${Status[file_queue]} &&
-                        -n ${Status[pid_loop_fifo]}
-                ]]
-        then
-                Event::Status 95 "${Options[file_queue]}" "${Status[pid_loop_fifo]}"
-        fi
-
-        if
                 [[ -n ${Status[pid_loop_file]} ]]
         then
                 Event::Status 95 "file" "${Status[pid_loop_file]}"
@@ -64,9 +55,8 @@ Event::CheckLoops ()
 
 Event::CreateLog ()
 {
-        command cp -bvf -- "${Options[file_log]}" "${Options[file_log]}"
         Event::Status 93 "${Options[file_log]}"
-        > "${Options[file_log]}"
+        >> "${Options[file_log]}"
 }
 
 Event::Help ()
@@ -76,8 +66,6 @@ Usage:
         events.sh <options> [<arguments>]
 
 Options:
-        #-C                     Use a coprocess, when initiating an event loop
-        -F                      Use a fifo, when initiating an event loop
         -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
         -i <info>               Input for postprocessing the inotifywait(1) file
@@ -99,7 +87,6 @@ Arguments:
 
 Environment variables:
         EVENT_LOG_FILE          ${XDG_DATA_HOME}/event.log
-        EVENT_QUEUE_FILE        ${TMPDIR:-/tmp}/event.queue
         EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event.rc
         EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event.spool
 
@@ -111,11 +98,8 @@ Configs:
         Events[<int>_name]      Name of the connected subscripts
         Events[<int>_period]    Period in seconds
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
-        #Options[coproc]        Like option -C
         Options[delay]          Delay of the time loop in seconds
-        Options[fifo]           Like option -F
         Options[file_log]       Logfile
-        Options[file_queue]     Queuefile (fifo)
         Options[file_spool]     Spoolfile
 HELP
 
@@ -124,14 +108,9 @@ HELP
 
 Event::Kill ()
 {
-        [[ -p ${Status[file_queue]} ]] && {
-                Event::Status 88 "${Status[file_queue]}"
-                command rm -v -- "${Status[file_queue]}"
-        }
-
         [[ -n ${Status[file_spool]} ]] && {
                 Event::Status 89 "${Status[file_spool]}"
-                command sed -i '/^Status\[/d' "${Status[file_spool]}"
+                command sed -i '/^Status\[/d' "${Status[file_spool]}" 2>/dev/null
         }
 
         typeset -a pids=(
@@ -139,7 +118,6 @@ Event::Kill ()
                 ${Status[pid_loop_period_coproc]}
                 ${Status[pid_loop_file]}
                 ${Status[pid_loop_period]}
-                ${Status[pid_loop_queue]}
         )
 
         typeset -i p
@@ -152,8 +130,7 @@ Event::Kill ()
 
 Event::CreateCoproc ()
 {
-        exec 4> \
-        >( \
+        exec 4> >( \
                 typeset \
                         job \
                         info;
@@ -174,7 +151,7 @@ Event::CreateCoproc ()
                                 err=$?
                                 (( err == 100 )) && {
                                         source "${Status[file_spool]}"
-                                        ( exec event.sh -lfpC & )
+                                        ( exec "${BASH_SOURCE[0]}" -lfp & )
                                         Event::Kill
                                 }
                         else
@@ -188,31 +165,9 @@ Event::CreateCoproc ()
         )
 }
 
-Event::CreateFifo ()
-{
-        Event::Status 92 "${Options[file_queue]}"
-
-        [[ -p ${Options[file_queue]} || -f ${Options[file_queue]} ]] && {
-                command rm -v -- "${Options[file_queue]}"
-        }
-
-        command mkfifo "${Options[file_queue]}"
-        Status[file_queue]=${Options[file_queue]}
-
-        (
-                exec event-fifo.sh \
-                        "$time_curr" \
-                        "${Options[file_log]}" \
-                        "${Options[file_spool]}" \
-                        "${Status[file_queue]}" &
-        )
-}
-
 Event::LoopFile ()
 {
-        trap 'Event::Kill' INT TERM QUIT EXIT
-
-        Event::Prepare
+        Event::Prepare || return 1
 
         typeset -a \
                 events_names \
@@ -240,6 +195,7 @@ Event::LoopFile ()
         if
                 (( ${#files[@]} ))
         then
+                trap 'Event::Kill' INT TERM QUIT EXIT
                 while
                         IFS='_' read -r event_number _
                 do
@@ -255,90 +211,38 @@ Event::LoopFile ()
                 Status[pid_loop_file]=$$
                 Event::Postpare
                 Event::Status 96 "file (inotifywait)" "$$"
-                if
-                        [[ ${Options[fifo]} == fifo ]]
-                then
-                        if
-                                [[ -n ${Events[${excludes[0]}]} ]]
-                        then
-                                printf '%s\n' "${input[@]}" \
-                                | command grep -vf <(
-                                        printf '%s\n' "${filter[@]}"
-                                ) \
-                                | exec inotifywait -qm -o "${Status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
-                        else
-                                printf '%s\n' "${input[@]}" \
-                                | exec inotifywait -qm -o "${Status[file_queue]}" --format 'FILE %w|%:e|%f' --fromfile -
-                        fi
-                elif
-                        [[ ${Options[coproc]} == coproc ]]
-                then
-                        {
-                                coproc _loop_file {
-                                        if
-                                                [[ -n ${Events[${excludes[0]}]} ]]
-                                        then
-                                                printf '%s\n' "${input[@]}" \
-                                                | command grep -vf <(
-                                                        printf '%s\n' "${filter[@]}"
-                                                ) \
-                                                | exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - \
-                                                | {
-                                                        while
-                                                                read -r
-                                                        do
-                                                                printf '%s\n' "$REPLY"
-                                                        done
-                                                }
-                                        else
-                                                printf '%s\n' "${input[@]}" \
-                                                | exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - \
-                                                | {
-                                                        while read -r
-                                                        do
-                                                                printf '%s\n' "$REPLY"
-                                                        done
-                                                }
-                                        fi
-                                } 1>&3 2>&1
-                        } 3>&4
-                        Status[pid_loop_file_coproc]=$_loop_file_PID
-                        Event::Status 96 "file (coproc)" "$_loop_file_PID"
-                        printf 'Status[pid_loop_file_coproc]=%s\n' "$_loop_file_PID" >> "${Status[file_spool]}"
-                else
-                        if
-                                [[ -n ${Events[${excludes[0]}]} ]]
-                        then
-                                printf '%s\n' "${input[@]}" \
-                                | command grep -vf <(
-                                        printf '%s\n' "${filter[@]}"
-                                ) \
-                                | exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - \
-                                | {
-                                        while
-                                                read -r job info
-                                        do
-                                                "${BASH_SOURCE[0]}" -fi "$info"
-                                                (( $? == 99 )) && {
-                                                        exec "${BASH_SOURCE[0]}" -lf
-                                                }
-                                        done
-                                }
-                        else
-                                printf '%s\n' "${input[@]}" \
-                                | exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - \
-                                | {
-                                        while
-                                                read -r job info
-                                        do
-                                                "${BASH_SOURCE[0]}" -fi "$info"
-                                                (( $? == 99 )) && {
-                                                        exec "${BASH_SOURCE[0]}" -lf
-                                                }
-                                        done
-                                }
-                        fi
-                fi
+                {
+                        coproc _loop_file {
+                                if
+                                        [[ -n ${Events[${excludes[0]}]} ]]
+                                then
+                                        printf '%s\n' "${input[@]}" \
+                                        | command grep -vf <(
+                                                printf '%s\n' "${filter[@]}"
+                                        ) \
+                                        | exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - \
+                                        | {
+                                                while
+                                                        read -r
+                                                do
+                                                        printf '%s\n' "$REPLY"
+                                                done
+                                        }
+                                else
+                                        printf '%s\n' "${input[@]}" \
+                                        | exec inotifywait -qm --format 'FILE %w|%:e|%f' --fromfile - \
+                                        | {
+                                                while read -r
+                                                do
+                                                        printf '%s\n' "$REPLY"
+                                                done
+                                        }
+                                fi
+                        } 1>&3 2>&1
+                } 3>&4
+                Status[pid_loop_file_coproc]=$_loop_file_PID
+                Event::Status 96 "file (coproc)" "$_loop_file_PID"
+                printf 'Status[pid_loop_file_coproc]=%s\n' "$_loop_file_PID" >> "${Status[file_spool]}"
         else
                 Event::Status 83
         fi
@@ -346,47 +250,27 @@ Event::LoopFile ()
 
 Event::LoopPeriod ()
 {
-        trap 'Event::Kill' INT TERM QUIT EXIT
+        Event::Prepare || return 1
 
-        Event::Prepare
+        trap 'Event::Kill' INT TERM QUIT EXIT
         Status[pid_loop_period]=$$
         Event::Postpare
 
         Event::Status 96 "period" "$$"
 
-        if
-                [[ ${Options[fifo]} == fifo ]]
-        then
-                exec 3<>"${Options[file_queue]}"
-                while
-                        command sleep "${Options[delay]}"
-                do
-                        printf '%s %(%s)T\n' "PERIOD" -1 1>&3
-                done
-                exec 3<&-
-                exec 3>&-
-        elif
-                [[ ${Options[coproc]} == coproc ]]
-        then
-                {
-                        coproc _loop_period {
-                                while
-                                        command sleep "${Options[delay]}"
-                                do
-                                        printf '%s\n' "PERIOD"
-                                done
-                        } 1>&3 2>&1
-                } 3>&4
-                Status[pid_loop_period_coproc]=$_loop_period_PID
-                Event::Status 96 "period (coproc)" "$_loop_period_PID"
-                printf 'Status[pid_loop_period_coproc]=%d\n' "$_loop_period_PID" >> "${Status[file_spool]}"
-        else
-                while
-                        command sleep "${Options[delay]}"
-                do
-                        "${BASH_SOURCE[0]}" -p
-                done
-        fi
+        {
+                coproc _loop_period {
+                        while
+                                command sleep "${Options[delay]}"
+                        do
+                                printf '%s\n' "PERIOD"
+                        done
+                } 1>&3 2>&1
+        } 3>&4
+
+        Status[pid_loop_period_coproc]=$_loop_period_PID
+        Event::Status 96 "period (coproc)" "$_loop_period_PID"
+        printf 'Status[pid_loop_period_coproc]=%d\n' "$_loop_period_PID" >> "${Status[file_spool]}"
 }
 
 Event::Main ()
@@ -443,25 +327,15 @@ Event::Main ()
                 Options[file_spool]=${Options[file_spool]:-${XDG_DATA_HOME}/event.spool}
         fi
 
-        if
-                [[ -n $EVENT_QUEUE_FILE ]]
-        then
-                Options[file_queue]=$EVENT_QUEUE_FILE
-                #unset -v EVENT_QUEUE_FILE
-        else
-                Options[file_queue]=${Options[file_queue]:-${TMPDIR:-/tmp}/event.queue}
-        fi
-
         command mkdir -vp -- \
                 "${Options[file_log]%/*}" \
-                "${Options[file_spool]%/*}" \
-                "${Options[file_queue]%/*}";
+                "${Options[file_spool]%/*}";
 
         Options[delay]=${Options[delay]:-60}
 
         typeset \
                 opt \
-                opts=:fhi:klFpv;
+                opts=:fhi:klpv;
 
         typeset -i j="$# - 1"
 
@@ -469,9 +343,6 @@ Event::Main ()
                 getopts $opts opt
         do
                 case $opt in
-                C)
-                        Options[coproc]=coproc
-                ;;
                 f)
                         Functions[f]=$(( j++ ))
                 ;;
@@ -498,9 +369,6 @@ Event::Main ()
                 l)
                         Functions[l]=$(( j++ ))
                 ;;
-                F)
-                        Options[fifo]=fifo
-                ;;
                 p)
                         Functions[p]=$(( j++ ))
                 ;;
@@ -516,14 +384,12 @@ Event::Main ()
                 esac
         done
 
-        [[ ${Options[coproc]} == coproc && ${Options[fifo]} == fifo ]] && Event::Status 103
-
         Functions[${Functions[f]:--}]=Event::Files
         Functions[${Functions[k]:--}]=Event::Kill
         Functions[${Functions[l]:--}]=Event::Loop
         Functions[${Functions[p]:--}]=Event::Periods
 
-        source "${Options[file_spool]}"
+        source "${Options[file_spool]}" 2>/dev/null
 
         typeset -i err=
 
@@ -549,15 +415,14 @@ Event::Main ()
                         (( err == 100 ))
                 then
                         Functions=()
-                        Functions[0]=Event::LoopFile
-                        Functions[1]=Event::LoopPeriod
+                        Functions[0]=Event::LoopPeriod
+                        Functions[1]=Event::LoopFile
                 else
                         exit 95
                 fi
         elif
                 [[ -n ${Functions[l]} && -n ${Functions[f]} ]]
         then
-                [[ -n ${Options[coproc]} ]] && Event::Status 104
                 Event::CheckLoops
                 err=$?
                 if
@@ -571,7 +436,6 @@ Event::Main ()
         elif
                 [[ -n ${Functions[l]} && -n ${Functions[p]} ]]
         then
-                [[ -n ${Options[coproc]} ]] && Event::Status 104
                 Event::CheckLoops
                 err=$?
                 if
@@ -588,8 +452,6 @@ Event::Main ()
                         -n ${Functions[f]}
                 ]]
         then
-                Options[coproc]=
-                Options[fifo]=
                 Options[noloop]=noloop
                 if
                         [[ -n ${Functions[i]} ]]
@@ -601,8 +463,6 @@ Event::Main ()
         elif
                 [[ -n ${Functions[p]} ]]
         then
-                Options[coproc]=
-                Options[fifo]=
                 Options[noloop]=noloop
         fi
 
@@ -631,7 +491,7 @@ Event::Postpare ()
         then
                 printf '%s\n' "${spool[@]}" > "${Options[file_spool]}"
         else
-                command sed -i '/^Status\[/d' "${Status[file_spool]}"
+                command sed -i '/^Status\[/d' "${Status[file_spool]}" 2>/dev/null
         fi
 
         Status[file_rc]=${Status[file_rc]:-${Options[file_rc]}}
@@ -649,30 +509,14 @@ Event::Prepare ()
         Status[file_spool]=${Options[file_spool]}
 
         if
-                [[ -n ${Status[file_queue]} || -n ${Options[noloop]} ]]
-        then
-                :
-        elif
-                [[ ${Options[fifo]} == fifo ]]
-        then
-                Event::CreateLog
-                Event::CreateFifo
-                command sleep 1
-                source <(
-                        command grep "^Status\[pid_loop_fifo\]=" "${Options[file_spool]}"
-                )
-        elif
-                [[ ${Options[coproc]} == coproc ]]
-        then
                 [[
-                        -n ${Status[pid_loop_period_coproc]} ||
-                        -n ${Status[pid_loop_file_coproc]}
-                ]] || {
-                        Event::CreateLog
-                        Event::CreateCoproc
-                }
-        else
+                        -z ${Options[noloop]} ||
+                        -z ${Status[pid_loop_period_coproc]} ||
+                        -z ${Status[pid_loop_file_coproc]}
+                ]]
+        then
                 Event::CreateLog
+                Event::CreateCoproc
         fi
 }
 
@@ -685,7 +529,7 @@ Event::Status ()
         80) printf -v s '%s %s:Error:%s: Unknown flag: -%s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                                ;;
         81) printf -v s '%s %s:Error:%s: Config file missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                                   ;;
         82) printf -v s '%s %s:Error:%s: Anacronistic commands missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                         ;;
-        83) printf -v s '%s %s:Error:%s: Inotify filenames missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                             ;;
+        83) printf      '%s %s:Error:%s: Inotify filenames missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                             ;;
         84) printf -v s '%s %s:Error:%s: No loop specified\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                                     ;;
         85) printf -v s '%s %s:Error:%s: No event information specified\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                        ;;
         86) printf -v s '%s %s:Error:%s: Option -%s requires an argument\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                  ;;
@@ -695,15 +539,15 @@ Event::Status ()
         90) printf      '%s %s:Info:%s: Killing pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                                   ;;
         91) printf -v s '%s %s:Error:%s: Conf File does not exist or is not a regular file: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"            ;;
         92) printf      '%s %s:Info:%s: Creating fifo: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                                 ;;
-        93) printf      '%s %s:Info:%s: Emptying log file: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                             ;;
+        93) printf      '%s %s:Info:%s: Creating new logs: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                             ;;
         94) printf      '%s %s:Info:%s: Processing command %s: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"                                    ;;
-        95) printf      '%s %s:Info:%s: Loop %s has already been started with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3" ; return 95    ;;
-        96) printf      '%s %s:Info:%s: Starting loop %s with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"                                ;;
+        95) printf      '%s %s:Info:%s: Loop (%s) has already been started with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3" ; return 95  ;;
+        96) printf      '%s %s:Info:%s: Starting loop (%s) with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"                              ;;
         97) printf      '%s %s:Error:%s: Job is unknown: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                               ;;
         98) printf -v s '%s %s:Error:%s: Options -f cannot be combined with -p in one commandline\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"              ;;
-        99) printf -v s '%s %s:Info:%s: Restarting loop file with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                 ;;
-        100) printf -v s '%s %s:Info:%s: Restarting loop file and loop period with pids: %s, %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"      ;;
-        101) printf -v s '%s %s:Info:%s: Stopping loop fifo with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                  ;;
+        99) printf -v s '%s %s:Info:%s: Restarting loop (file) with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                               ;;
+        100) printf -v s '%s %s:Info:%s: Restarting loop (file) and loop period with pids: %s, %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"    ;;
+        101) printf -v s '%s %s:Info:%s: Stopping loop (fifo) with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                ;;
         102) printf -v s '%s %s:Error:%s: Event symbols missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                                ;;
         103) printf -v s '%s %s:Error:%s: Options -C cannot be combined with -F in one commandline\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"             ;;
         104) printf -v s '%s %s:Error:%s: Option -C must be combined with -lfp in one commandline\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"              ;;
@@ -859,7 +703,7 @@ Event::Periods ()
 
 Event::Version ()
 {
-        printf 'v%s\n' "0.1.4"
+        printf 'v%s\n' "0.1.5"
 }
 
 # -- MAIN.
