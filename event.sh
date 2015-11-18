@@ -174,7 +174,7 @@ Event::CreateCoproc ()
                                 err=$?
                                 (( err == 100 )) && {
                                         source "${Status[file_spool]}"
-                                        ( command setsid "${BASH_SOURCE[0]}" -lfpc & )
+                                        ( command setsid "${BASH_SOURCE[0]}" -lfpC & )
                                         Event::Kill
                                 }
                         else
