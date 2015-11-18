@@ -5,7 +5,7 @@ Usage:
         events.sh <options> [<arguments>]
 
 Options:
-        -C                      Use a coprocess, when initiating an event loop
+        #-C                     Use a coprocess, when initiating an event loop
         -F                      Use a fifo, when initiating an event loop
         -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
@@ -40,7 +40,7 @@ Configs:
         Events[<int>_name]      Name of the connected subscripts
         Events[<int>_period]    Period in seconds
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
-        Options[coproc]         Like option -c
+        #Options[coproc]        Like option -C
         Options[delay]          Delay of the time loop in seconds
         Options[fifo]           Like option -F
         Options[file_log]       Logfile
