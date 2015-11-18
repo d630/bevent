@@ -9,20 +9,15 @@ Options:
         -h                      Show this instruction
         -i <info>               Input for postprocessing the inotifywait(1) file
                                 loop with -f
-        -k                      Kill any loop and purge the spool file
-        -l                      Indicate to set up an event loop. Used with
-                                options -[fp]
+        -k                      Kill any coprocess and purge the spool file
+        -C                      Indicate to set up an event loop in a coprocess
+                                Used with options -[fp]
         -p                      Work with time events having periods configured
         -v                      Print version
 
 Arguments:
-        <info>                  See Manpage of inotifywait(1)
-                                If feeding to the fifo loop:
-                                        FILE %w|%:e|%f
-                                or
-                                        PERIOD %w|%:e|%f
-                                Otherwise only:
-                                        %w|%:e|%f
+        <info>                  See Manpage of inotifywait(1):
+                                %w|%:e|%f
 
 Environment variables:
         EVENT_LOG_FILE          ${XDG_DATA_HOME}/event.log
