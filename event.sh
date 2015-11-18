@@ -174,7 +174,7 @@ Event::CreateCoproc ()
                                 err=$?
                                 (( err == 100 )) && {
                                         source "${Status[file_spool]}"
-                                        ( command setsid "${BASH_SOURCE[0]}" -lfpC & )
+                                        ( exec event.sh -lfpC & )
                                         Event::Kill
                                 }
                         else
@@ -200,7 +200,7 @@ Event::CreateFifo ()
         Status[file_queue]=${Options[file_queue]}
 
         (
-                command setsid ./event-fifo.sh \
+                exec event-fifo.sh \
                         "$time_curr" \
                         "${Options[file_log]}" \
                         "${Options[file_spool]}" \

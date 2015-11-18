@@ -30,9 +30,9 @@ do
                 elif
                         (( $err == 100 ))
                 then
-                        ( command setsid event.sh -lp & )
+                        ( exec event.sh -lp & )
                         command sleep 2
-                        ( command setsid event.sh -lf & )
+                        ( exec event.sh -lf & )
                         printf '%(%s)T %s:Info:101: Stopping loop fifo with pid: %d' -1 "$0" "$$"
                 fi
         else
