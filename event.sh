@@ -480,8 +480,6 @@ Event::Main ()
         do
                 [[ -n ${Functions[$opt]} ]] && ${Functions[$opt]}
         done
-
-        wait
 }
 
 Event::Postpare ()
@@ -641,7 +639,6 @@ Event::Files ()
                 done < <(
                         printf '%s\n' "${files[@]}"
                 )
-                wait
                 Event::Postpare
         fi
 }
@@ -695,8 +692,6 @@ Event::Periods ()
                 printf '%s\n' "${commands[@]}" \
                 | sort -n
         )
-
-        wait
 
         Event::Postpare
 }
