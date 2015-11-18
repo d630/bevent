@@ -41,7 +41,7 @@ Configs:
 
 ##### TODO
 
-- improve handling/parsing of [<int>_exlude]
-- improve parsing of [<int>_file]
-- thing about new configs
+- improve handling/parsing of `[<int>_exlude]`
+- improve parsing of `[<int>_file]`
+- think about new configs
 - etc.
