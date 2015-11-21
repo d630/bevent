@@ -137,10 +137,10 @@ Event::CoprocFile ()
 
         events_names=( ${!Events[@]} )
         files=(
-                ${events_names[@]//+([0-9])_@(command|exclude|name|period|symbol|time_last)/}
+                ${events_names[@]//+([0-9])_@(command|exclude|function|name|period|symbol|time_last)/}
         )
         excludes=(
-                ${events_names[@]//+([0-9])_@(command|file|name|period|symbol|time_last)/}
+                ${events_names[@]//+([0-9])_@(command|file|function|name|period|symbol|time_last)/}
         )
 
         shopt -u extglob
