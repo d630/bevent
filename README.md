@@ -30,6 +30,8 @@ Configs:
                                 files in a watched folder. Delimiter: semicolon
                                 (;)
         Events[<int>_file]      Watched filenames. Delimiter: pipe (|)
+        Events[<int>_function]  Whether command list is a bash shell function.
+                                true/false
         Events[<int>_name]      Name of the connected subscripts
         Events[<int>_period]    Period in seconds
         Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
@@ -44,4 +46,3 @@ Configs:
 - improve handling/parsing of `[<int>_exlude]`
 - improve parsing of `[<int>_file]`
 - think about new configs
-- etc.

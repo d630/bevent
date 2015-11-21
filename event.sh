@@ -531,13 +531,13 @@ Event::Files ()
 
         events_names=( ${!Events[@]} )
         files=(
-                ${events_names[@]//+([0-9])_@(command|exclude|name|period|symbol|time_last)/}
+                ${events_names[@]//+([0-9])_@(command|exclude|function|name|period|symbol|time_last)/}
         )
         symbols=(
-                ${events_names[@]//+([0-9])_@(command|exclude|file|name|period|time_last)/}
+                ${events_names[@]//+([0-9])_@(command|exclude|file|function|name|period|time_last)/}
         )
         commands=(
-                ${events_names[@]//+([0-9])_@(exclude|file|name|period|symbol|time_last)/}
+                ${events_names[@]//+([0-9])_@(exclude|file|function|name|period|symbol|time_last)/}
         )
 
         shopt -u extglob
@@ -564,7 +564,7 @@ Event::Files ()
                                 do
                                         [[ $symbol == $s ]] && {
                                                 Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
-                                                ( command setsid "${Events[${event_number}_command]}" & )
+                                                Event::Run
                                                 break
                                         }
                                 done
@@ -591,7 +591,7 @@ Event::Periods ()
 
         commands=( ${!Events[@]} )
         commands=(
-                ${commands[@]//+([0-9])_@(exclude|file|name|period|symbol|time_last)/}
+                ${commands[@]//+([0-9])_@(exclude|file|function|name|period|symbol|time_last)/}
         )
 
         (( ${#commands[@]} )) ||  Event::Status 82
@@ -610,7 +610,7 @@ Event::Periods ()
                                 (( time_diff >= ${Events[${event_number}_period]} ))
                         then
                                 Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
-                                ( command setsid "${Events[${event_number}_command]}" & )
+                                Event::Run
                                 spool+=(
                                         "Events[${event_number}_time_last]=${time_curr}"
                                 )
@@ -630,9 +630,22 @@ Event::Periods ()
         Event::Postpare
 }
 
+Event::Run ()
+if
+        ${Events[${event_number}_function]:-false} 2>/dev/null &&
+        typeset -F "${Events[${event_number}_command]}" 1>/dev/null 2>&1
+then
+        (
+                typeset -xf "${Events[${event_number}_command]}"
+                command setsid bash -c "${Events[${event_number}_command]}" &
+        )
+else
+        ( command setsid "${Events[${event_number}_command]}" & )
+fi
+
 Event::Version ()
 {
-        printf 'v%s\n' "0.1.7"
+        printf 'v%s\n' "0.1.8"
 }
 
 # -- MAIN.
