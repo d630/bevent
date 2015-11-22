@@ -126,10 +126,11 @@ Event::CoprocFile ()
                 events_names \
                 excludes \
                 files \
-                filter \
-                input;
+                patterns \
+                watched;
 
         typeset \
+                event_number \
                 job \
                 info;
 
@@ -151,10 +152,10 @@ Event::CoprocFile ()
                 while
                         IFS='_' read -r event_number _
                 do
-                        filter+=(
+                        patterns+=(
                                 ${Events[${event_number}_exclude]//;/$'\n'}
                         )
-                        input+=(
+                        watched+=(
                                 ${Events[${event_number}_file]//|/ }
                         )
                 done < <(
@@ -164,14 +165,14 @@ Event::CoprocFile ()
                 coproc _loop_file {
                         #trap 'Event::Kill' INT TERM QUIT EXIT
                         if
-                                [[ -n ${Events[${excludes[0]}]} ]]
+                                (( ${#excludes[@]} ))
                         then
-                                printf '%s\n' "${input[@]}" \
+                                printf '%s\n' "${watched[@]}" \
                                 | command grep -vf <(
-                                        printf '%s\n' "${filter[@]}"
+                                        printf '%s\n' "${patterns[@]}"
                                 )
                         else
-                                printf '%s\n' "${input[@]}"
+                                printf '%s\n' "${watched[@]}"
                         fi \
                         | tee >(Event::Status 88 $(</dev/fd/0)) \
                         | exec inotifywait -qm --format '%w|%:e|%f' --fromfile - \
@@ -507,25 +508,21 @@ Event::Files ()
 
         IFS='|' read -r path symbol file <<< "$@"
 
-        [[ $symbol == DELETE_SELF ]] && {
-                if
-                        [[
-                                -n ${Status[pid_loop_file_coproc]} ||
-                                -n ${Status[pid_loop_period_coproc]}
-                        ]]
-                then
-                        Event::Status 100 "${Status[pid_loop_file_coproc]}" "${Status[pid_loop_period_coproc]}"
-                else
-                        Event::Kill
+        if
+                [[
+                        $symbol == DELETE_SELF &&
+                        -n ${Status[pid_loop_file_coproc]}
+                ]]
+        then
                         if
-                                [[ -n ${Status[pid_loop_period]} ]]
+                                [[ -n ${Status[pid_loop_period_coproc]} ]]
                         then
-                                Event::Status 100 "${Status[pid_loop_file]}" "${Status[pid_loop_period]}"
+                                Event::Status 100 "${Status[pid_loop_file_coproc]}" "${Status[pid_loop_period_coproc]}"
                         else
-                                Event::Status 99 "${Status[pid_loop_file]}"
+                                Event::Kill
+                                Event::Status 99 "${Status[pid_loop_file_coproc]}"
                         fi
-                fi
-        }
+        fi
 
         shopt -s extglob
 
@@ -559,17 +556,23 @@ Event::Files ()
                 while
                         IFS='_' read -r event_number _
                 do
-                        [[ ${Events[${event_number}_file]} =~ $path ]] && {
-                                for s in ${Events[${event_number}_symbol]//:/ }
-                                do
-                                        [[ $symbol == $s ]] && {
-                                                Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
-                                                Event::Run
-                                                break
-                                        }
-                                done
-                                s=
-                        }
+                        while
+                                read -r
+                        do
+                                [[ $REPLY =~ $path ]] && {
+                                        for s in ${Events[${event_number}_symbol]//:/ }
+                                        do
+                                                [[ $symbol == $s ]] && {
+                                                        Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
+                                                        Event::Run
+                                                        break
+                                                }
+                                        done
+                                        s=
+                                }
+                        done < <(
+                                printf '%s\n' "${Events[${event_number}_file]//|/$'\n'}"
+                        )
                 done < <(
                         printf '%s\n' "${files[@]}"
                 )
@@ -645,7 +648,7 @@ fi
 
 Event::Version ()
 {
-        printf 'v%s\n' "0.1.8"
+        printf 'v%s\n' "0.1.9"
 }
 
 # -- MAIN.
