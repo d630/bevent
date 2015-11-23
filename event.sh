@@ -152,11 +152,19 @@ Event::CoprocFile ()
                 while
                         IFS='_' read -r event_number _
                 do
-                        patterns+=(
-                                ${Events[${event_number}_exclude]//;/$'\n'}
+                        while
+                                IFS= read -r -d ';'
+                        do
+                                patterns+=( "$REPLY" )
+                        done < <(
+                                printf "%s;\n" "${Events[${event_number}_exclude]}"
                         )
-                        watched+=(
-                                ${Events[${event_number}_file]//|/ }
+                        while
+                                IFS= read -r -d '|'
+                        do
+                                watched+=( "$REPLY" )
+                        done < <(
+                                printf "%s|\n" "${Events[${event_number}_file]}"
                         )
                 done < <(
                         printf '%s\n' "${files[@]}"
@@ -165,7 +173,7 @@ Event::CoprocFile ()
                 coproc _loop_file {
                         #trap 'Event::Kill' INT TERM QUIT EXIT
                         if
-                                (( ${#excludes[@]} ))
+                                (( ${#excludes[@]} && ${#patterns[@]} ))
                         then
                                 printf '%s\n' "${watched[@]}" \
                                 | command grep -vf <(
@@ -648,7 +656,7 @@ fi
 
 Event::Version ()
 {
-        printf 'v%s\n' "0.1.9"
+        printf 'v%s\n' "0.1.10"
 }
 
 # -- MAIN.
