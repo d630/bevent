@@ -33,7 +33,7 @@ Event::CheckCoprocs ()
         typeset -i err=1
 
         if
-                [[ -n ${Status[pid_loop_file_coproc]} ]]
+                (( ${Status[pid_loop_file_coproc]} ))
         then
                 Event::Status 95 "file" "${Status[pid_loop_file_coproc]}"
                 err=11
@@ -42,7 +42,7 @@ Event::CheckCoprocs ()
         fi
 
         if
-                [[ -n ${Status[pid_loop_period_coproc]} ]]
+                (( ${Status[pid_loop_period_coproc]} ))
         then
                 Event::Status 95 "period" "${Status[pid_loop_period_coproc]}"
                 err=${err}1
@@ -105,10 +105,12 @@ HELP
 
 Event::Kill ()
 {
-        [[ -n ${Status[file_spool]} ]] && {
+        if
+                [[ -n ${Status[file_spool]} && -f ${Status[file_spool]} ]]
+        then
                 Event::Status 89 "${Status[file_spool]}"
                 command sed -i '/^Status\[/d' "${Status[file_spool]}" 2>/dev/null
-        }
+        fi
 
         typeset p
         for p in ${Status[pid_loop_file_coproc]} ${Status[pid_loop_period_coproc]}
@@ -457,12 +459,7 @@ Event::Postpare ()
 Event::Prepare ()
 {
         Status[file_spool]=${Options[file_spool]}
-
-        if
-                [[ -z ${Options[noloop]} ]]
-        then
-                Event::CreateLog
-        fi
+        [[ -z ${Options[noloop]} ]] && Event::CreateLog
 }
 
 Event::Status ()
@@ -517,19 +514,16 @@ Event::Files ()
         IFS='|' read -r path symbol file <<< "$@"
 
         if
-                [[
-                        $symbol == DELETE_SELF &&
-                        -n ${Status[pid_loop_file_coproc]}
-                ]]
+                [[ $symbol == DELETE_SELF && -n ${Status[pid_loop_file_coproc]} ]]
         then
-                        if
-                                [[ -n ${Status[pid_loop_period_coproc]} ]]
-                        then
-                                Event::Status 100 "${Status[pid_loop_file_coproc]}" "${Status[pid_loop_period_coproc]}"
-                        else
-                                Event::Kill
-                                Event::Status 99 "${Status[pid_loop_file_coproc]}"
-                        fi
+                if
+                        (( ${Status[pid_loop_period_coproc]} ))
+                then
+                        Event::Status 100 "${Status[pid_loop_file_coproc]}" "${Status[pid_loop_period_coproc]}"
+                else
+                        Event::Kill
+                        Event::Status 99 "${Status[pid_loop_file_coproc]}"
+                fi
         fi
 
         shopt -s extglob
@@ -565,7 +559,7 @@ Event::Files ()
                         IFS='_' read -r event_number _
                 do
                         while
-                                read -r
+                                IFS= read -r -d '|'
                         do
                                 [[ $REPLY =~ $path ]] && {
                                         for s in ${Events[${event_number}_symbol]//:/ }
@@ -579,7 +573,7 @@ Event::Files ()
                                         s=
                                 }
                         done < <(
-                                printf '%s\n' "${Events[${event_number}_file]//|/$'\n'}"
+                                printf '%s|\n' "${Events[${event_number}_file]}"
                         )
                 done < <(
                         printf '%s\n' "${files[@]}"
