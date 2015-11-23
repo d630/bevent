@@ -70,6 +70,8 @@ Bevents[<int>_exclude]  BRE used with grep(1) to select non-matching
                         files in a watched folder. Delimiter: semicolon
                         (;)
 Bevents[<int>_file]     Watched filenames. Delimiter: vertical bar (|)
+Events[<int>_function]  Whether command list is a bash shell function.
+                        true/false
 Bevents[<int>_name]     Name of the connected subscripts
 Bevents[<int>_period]   Period in seconds
 Bevents[<int>_symbol]   Names of the inotify events. Delimiter: colon
