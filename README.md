@@ -7,8 +7,8 @@ Usage:
 Options:
         -f                      Work with file events via inotifywait(1)
         -h                      Show this instruction
-        -i <info>               Input for postprocessing the inotifywait(1) out
-                                put. Used with option -f
+        -i <info>               Input for postprocessing the inotifywait(1)
+                                output. Used with option -f
         -k                      Kill any coprocess and purge the spool file
         -C                      Indicate to set up an event loop in a coprocess
                                 Used with options -[fp]
@@ -29,7 +29,7 @@ Configs:
         Events[<int>_exclude]   BRE used with grep(1) to select non-matching
                                 files in a watched folder. Delimiter: semicolon
                                 (;)
-        Events[<int>_file]      Watched filenames. Delimiter: pipe (|)
+        Events[<int>_file]      Watched filenames. Delimiter: vertical bar (|)
         Events[<int>_function]  Whether command list is a bash shell function.
                                 true/false
         Events[<int>_name]      Name of the connected subscripts
