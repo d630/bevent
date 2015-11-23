@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-# event.sh
+# bevent
 # Copyright (C) 2015 D630, GNU GPLv3
-# <https://github.com/D630/event.sh>
+# <https://github.com/D630/bevent>
 
 # -- DEBUGGING.
 
 #printf '%s (%s)\n' "$BASH_VERSION" "${BASH_VERSINFO[5]}" && exit 0
 #set -o xtrace
-#exec 2>> ~/event.sh.log
+#exec 2>> ~/bevent.log
 #set -o verbose
 #set -o noexec
 #set -o errexit
@@ -28,14 +28,14 @@
 
 # -- FUNCTIONS.
 
-Event::CheckCoprocs ()
+Bevent::CheckCoprocs ()
 {
         typeset -i err=1
 
         if
                 (( ${Status[pid_loop_file_coproc]} ))
         then
-                Event::Status 95 "file" "${Status[pid_loop_file_coproc]}"
+                Bevent::Status 95 "file" "${Status[pid_loop_file_coproc]}"
                 err=11
         else
                 err=10
@@ -44,7 +44,7 @@ Event::CheckCoprocs ()
         if
                 (( ${Status[pid_loop_period_coproc]} ))
         then
-                Event::Status 95 "period" "${Status[pid_loop_period_coproc]}"
+                Bevent::Status 95 "period" "${Status[pid_loop_period_coproc]}"
                 err=${err}1
         else
                 err=${err}0
@@ -53,17 +53,17 @@ Event::CheckCoprocs ()
         return "$err"
 }
 
-Event::CreateLog ()
+Bevent::CreateLog ()
 {
-        Event::Status 93 "${Options[file_log]}"
+        Bevent::Status 93 "${Options[file_log]}"
         >> "${Options[file_log]}"
 }
 
-Event::Help ()
+Bevent::Help ()
 {
         { typeset h=$(</dev/fd/0) ; } <<'HELP'
 Usage:
-        events.sh <options> [<arguments>]
+        bevent <options> [<arguments>]
 
 Options:
         -f                      Work with file events via inotifywait(1)
@@ -81,19 +81,19 @@ Arguments:
                                 %w|%:e|%f
 
 Environment variables:
-        EVENT_LOG_FILE          ${XDG_DATA_HOME}/event/event.log
-        EVENT_RC_FILE           ${XDG_CONFIG_HOME}/event/event.rc
-        EVENT_SPOOL_FILE        ${XDG_DATA_HOME}/event/event.spool
+        BEVENT_LOG_FILE         ${XDG_DATA_HOME}/bevent/bevent.log
+        BEVENT_RC_FILE          ${XDG_CONFIG_HOME}/bevent/bevent.rc
+        BEVENT_SPOOL_FILE       ${XDG_DATA_HOME}/bevent/bevent.spool
 
 Configs:
-        Events[<int>_command]   Command list. Executed via setsid(1)
-        Events[<int>_exclude]   BRE used with grep(1) to select non-matching
+        Bevents[<int>_command]  Command list. Executed via setsid(1)
+        Bevents[<int>_exclude]  BRE used with grep(1) to select non-matching
                                 files in a watched folder. Delimiter: semicolon
                                 (;)
-        Events[<int>_file]      Watched filenames. Delimiter: vertical bar (|)
-        Events[<int>_name]      Name of the connected subscripts
-        Events[<int>_period]    Period in seconds
-        Events[<int>_symbol]    Names of the inotify events. Delimiter: colon
+        Bevents[<int>_file]     Watched filenames. Delimiter: vertical bar (|)
+        Bevents[<int>_name]     Name of the connected subscripts
+        Bevents[<int>_period]   Period in seconds
+        Bevents[<int>_symbol]   Names of the inotify events. Delimiter: colon
                                 (:)
         Options[delay]          Delay of the time loop in seconds
         Options[file_log]       Logfile
@@ -103,26 +103,26 @@ HELP
         printf '%s\n' "$h"
 }
 
-Event::Kill ()
+Bevent::Kill ()
 {
         if
                 [[ -n ${Status[file_spool]} && -f ${Status[file_spool]} ]]
         then
-                Event::Status 89 "${Status[file_spool]}"
+                Bevent::Status 89 "${Status[file_spool]}"
                 command sed -i '/^Status\[/d' "${Status[file_spool]}" 2>/dev/null
         fi
 
         typeset p
         for p in ${Status[pid_loop_file_coproc]} ${Status[pid_loop_period_coproc]}
         do
-                Event::Status 90 "$p"
+                Bevent::Status 90 "$p"
                 command pkill -TERM -P "$p"
         done
 }
 
-Event::CoprocFile ()
+Bevent::CoprocFile ()
 {
-        Event::Prepare || return 1
+        Bevent::Prepare || return 1
 
         typeset -a \
                 events_names \
@@ -138,7 +138,7 @@ Event::CoprocFile ()
 
         shopt -s extglob
 
-        events_names=( ${!Events[@]} )
+        events_names=( ${!Bevents[@]} )
         files=(
                 ${events_names[@]//+([0-9])_@(command|exclude|function|name|period|symbol|time_last)/}
         )
@@ -159,21 +159,21 @@ Event::CoprocFile ()
                         do
                                 patterns+=( "$REPLY" )
                         done < <(
-                                printf "%s;\n" "${Events[${event_number}_exclude]}"
+                                printf "%s;\n" "${Bevents[${event_number}_exclude]}"
                         )
                         while
                                 IFS= read -r -d '|'
                         do
                                 watched+=( "$REPLY" )
                         done < <(
-                                printf "%s|\n" "${Events[${event_number}_file]}"
+                                printf "%s|\n" "${Bevents[${event_number}_file]}"
                         )
                 done < <(
                         printf '%s\n' "${files[@]}"
                 )
-                Event::Postpare
+                Bevent::Postpare
                 coproc _loop_file {
-                        #trap 'Event::Kill' INT TERM QUIT EXIT
+                        #trap 'Bevent::Kill' INT TERM QUIT EXIT
                         if
                                 (( ${#excludes[@]} && ${#patterns[@]} ))
                         then
@@ -184,7 +184,7 @@ Event::CoprocFile ()
                         else
                                 printf '%s\n' "${watched[@]}"
                         fi \
-                        | tee >(Event::Status 88 $(</dev/fd/0)) \
+                        | tee >(Bevent::Status 88 $(</dev/fd/0)) \
                         | exec inotifywait -qm --format '%w|%:e|%f' --fromfile - \
                         | {
                                 while
@@ -195,26 +195,26 @@ Event::CoprocFile ()
                                         (( err == 100 )) && {
                                                 source "${Status[file_spool]}" 2>/dev/null
                                                 ( exec "${BASH_SOURCE[0]}" -Cfp & )
-                                                Event::Kill
+                                                Bevent::Kill
                                         }
                                 done
                         }
                 }
                 Status[pid_loop_file_coproc]=$_loop_file_PID
-                Event::Status 96 "file" "$_loop_file_PID"
+                Bevent::Status 96 "file" "$_loop_file_PID"
                 printf 'Status[pid_loop_file_coproc]=%s\n' "$_loop_file_PID" >> "${Status[file_spool]}"
         else
-                Event::Status 83
+                Bevent::Status 83
         fi
 }
 
-Event::CoprocPeriod ()
+Bevent::CoprocPeriod ()
 {
-        Event::Prepare || return 1
-        Event::Postpare
+        Bevent::Prepare || return 1
+        Bevent::Postpare
 
         coproc _loop_period {
-                #trap 'Event::Kill' INT TERM QUIT EXIT
+                #trap 'Bevent::Kill' INT TERM QUIT EXIT
                 while
                         command sleep "${Options[delay]}"
                 do
@@ -223,62 +223,62 @@ Event::CoprocPeriod ()
         }
 
         Status[pid_loop_period_coproc]=$_loop_period_PID
-        Event::Status 96 "period" "$_loop_period_PID"
+        Bevent::Status 96 "period" "$_loop_period_PID"
         printf 'Status[pid_loop_period_coproc]=%d\n' "$_loop_period_PID" >> "${Status[file_spool]}"
 }
 
-Event::Main ()
+Bevent::Main ()
 {
         typeset -i time_curr
         printf -v time_curr '%(%s)T' -1
 
-        (( $# )) || Event::Status 79
+        (( $# )) || Bevent::Status 79
 
         typeset -x +i LC_COLLATE=C
 
         typeset -A \
-                Events \
+                Bevents \
                 Functions \
                 Options \
                 Status;
 
         if
-                [[ -n $EVENT_RC_FILE ]]
+                [[ -n $BEVENT_RC_FILE ]]
         then
                 if
-                        [[ -f $EVENT_RC_FILE ]]
+                        [[ -f $BEVENT_RC_FILE ]]
                 then
-                        source "${Options[file_rc]:=${EVENT_RC_FILE}}"
-                        #unset -v EVENT_RC_FILE
+                        source "${Options[file_rc]:=${BEVENT_RC_FILE}}"
+                        #unset -v BEVENT_RC_FILE
                 else
-                        Event::Status 91 "$EVENT_RC_FILE"
+                        Bevent::Status 91 "$BEVENT_RC_FILE"
                 fi
         else
                 if
-                        [[ -f ${Options[file_rc]:=${XDG_CONFIG_HOME}/event/event.rc} ]]
+                        [[ -f ${Options[file_rc]:=${XDG_CONFIG_HOME}/bevent/bevent.rc} ]]
                 then
                         source "${Options[file_rc]}"
                 else
-                        Event::Status 91 "${Options[file_rc]}"
+                        Bevent::Status 91 "${Options[file_rc]}"
                 fi
         fi
 
         if
-                [[ -n $EVENT_LOG_FILE ]]
+                [[ -n $BEVENT_LOG_FILE ]]
         then
-                Options[file_log]=$EVENT_LOG_FILE
-                #unset -v EVENT_LOG_FILE
+                Options[file_log]=$BEVENT_LOG_FILE
+                #unset -v BEVENT_LOG_FILE
         else
-                Options[file_log]=${Options[file_log]:-${XDG_DATA_HOME}/event/event.log}
+                Options[file_log]=${Options[file_log]:-${XDG_DATA_HOME}/bevent/bevent.log}
         fi
 
         if
-                [[ -n $EVENT_SPOOL_FILE ]]
+                [[ -n $BEVENT_SPOOL_FILE ]]
         then
-                Options[file_spool]=$EVENT_SPOOL_FILE
-                #unset -v EVENT_SPOOL_FILE
+                Options[file_spool]=$BEVENT_SPOOL_FILE
+                #unset -v BEVENT_SPOOL_FILE
         else
-                Options[file_spool]=${Options[file_spool]:-${XDG_DATA_HOME}/event/event.spool}
+                Options[file_spool]=${Options[file_spool]:-${XDG_DATA_HOME}/bevent/bevent.spool}
         fi
 
         command mkdir -vp -- \
@@ -304,17 +304,17 @@ Event::Main ()
                         if
                                 [[ $OPTARG == -* ]]
                         then
-                                Event::Status 86 "$opt"
+                                Bevent::Status 86 "$opt"
                         elif
                                 [[ $OPTARG == [${opts//:/}] ]]
                         then
-                                Event::Status 87 "$OPTARG"
+                                Bevent::Status 87 "$OPTARG"
                         else
                                 Functions[i]=$OPTARG
                         fi
                 ;;
                 h)
-                        Event::Help
+                        Bevent::Help
                         exit $?
                 ;;
                 k)
@@ -327,21 +327,21 @@ Event::Main ()
                         Functions[p]=$(( j++ ))
                 ;;
                 v)
-                        Event::Version
+                        Bevent::Version
                         exit $?
                 ;;
                 :)
-                        Event::Status 86 "$OPTARG"
+                        Bevent::Status 86 "$OPTARG"
                 ;;
                 \?)
-                        Event::Status 80 "$OPTARG"
+                        Bevent::Status 80 "$OPTARG"
                 esac
         done
 
-        Functions[${Functions[f]:--}]=Event::Files
-        Functions[${Functions[k]:--}]=Event::Kill
-        Functions[${Functions[C]:--}]=Event::Coproc
-        Functions[${Functions[p]:--}]=Event::Periods
+        Functions[${Functions[f]:--}]=Bevent::Files
+        Functions[${Functions[k]:--}]=Bevent::Kill
+        Functions[${Functions[C]:--}]=Bevent::Coproc
+        Functions[${Functions[p]:--}]=Bevent::Periods
 
         source "${Options[file_spool]}" 2>/dev/null
 
@@ -350,12 +350,12 @@ Event::Main ()
         if
                 [[ -n ${Functions[C]} && -z ${Functions[f]}${Functions[p]} ]]
         then
-                Event::Status 84
+                Bevent::Status 84
         elif
                 [[ -n ${Functions[k]} ]]
         then
                 Functions=()
-                Functions[0]=Event::Kill
+                Functions[0]=Bevent::Kill
         elif
                 [[
                         -n ${Functions[C]} &&
@@ -363,21 +363,21 @@ Event::Main ()
                         -n ${Functions[p]}
                 ]]
         then
-                Event::CheckCoprocs
+                Bevent::CheckCoprocs
                 err=$?
                 if
                         (( err == 100 ))
                 then
                         Functions=()
-                        Functions[0]=Event::CoprocPeriod
-                        Functions[1]=Event::CoprocFile
+                        Functions[0]=Bevent::CoprocPeriod
+                        Functions[1]=Bevent::CoprocFile
                 else
                         exit 95
                 fi
         elif
                 [[ -n ${Functions[C]} && -n ${Functions[f]} ]]
         then
-                Event::CheckCoprocs
+                Bevent::CheckCoprocs
                 err=$?
                 if
                         (( err == 110 || err == 111 ))
@@ -385,12 +385,12 @@ Event::Main ()
                         exit 95
                 else
                         Functions=()
-                        Functions[0]=Event::CoprocFile
+                        Functions[0]=Bevent::CoprocFile
                 fi
         elif
                 [[ -n ${Functions[C]} && -n ${Functions[p]} ]]
         then
-                Event::CheckCoprocs
+                Bevent::CheckCoprocs
                 err=$?
                 if
                         (( err == 101 || err == 111 ))
@@ -398,7 +398,7 @@ Event::Main ()
                         exit 95
                 else
                         Functions=()
-                        Functions[0]=Event::CoprocPeriod
+                        Functions[0]=Bevent::CoprocPeriod
                 fi
         elif
                 [[
@@ -410,9 +410,9 @@ Event::Main ()
                 if
                         [[ -n ${Functions[i]} ]]
                 then
-                        Functions[${Functions[f]}]="Event::Files ${Functions[i]}"
+                        Functions[${Functions[f]}]="Bevent::Files ${Functions[i]}"
                 else
-                        Event::Status 85
+                        Bevent::Status 85
                 fi
         elif
                 [[ -n ${Functions[p]} ]]
@@ -436,7 +436,7 @@ Event::Main ()
         done
 }
 
-Event::Postpare ()
+Bevent::Postpare ()
 {
         if
                 (( ${#spool[@]} ))
@@ -456,13 +456,13 @@ Event::Postpare ()
         done >> "${Status[file_spool]}"
 }
 
-Event::Prepare ()
+Bevent::Prepare ()
 {
         Status[file_spool]=${Options[file_spool]}
-        [[ -z ${Options[noloop]} ]] && Event::CreateLog
+        [[ -z ${Options[noloop]} ]] && Bevent::CreateLog
 }
 
-Event::Status ()
+Bevent::Status ()
 {
         typeset s
 
@@ -487,7 +487,7 @@ Event::Status ()
         97) printf      '%s %s:Error:%s: Job is unknown: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                                               ;;
         99) printf -v s '%s %s:Info:%s: Restarting coproc (file) with pid: %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2"                             ;;
         100) printf -v s '%s %s:Info:%s: Restarting coprocs (file, period) with pids: %s, %s\n' "$time_curr" "${BASH_SOURCE[0]}" "$1" "$2" "$3"         ;;
-        102) printf -v s '%s %s:Error:%s: Event symbols missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                                ;;
+        102) printf -v s '%s %s:Error:%s: Bevent symbols missing\n' "$time_curr" "${BASH_SOURCE[0]}" "$1"                                                ;;
         esac 1>&2
 
         [[ -z $s ]] || {
@@ -496,7 +496,7 @@ Event::Status ()
         }
 }
 
-Event::Files ()
+Bevent::Files ()
 {
         typeset \
                 event_number \
@@ -519,16 +519,16 @@ Event::Files ()
                 if
                         (( ${Status[pid_loop_period_coproc]} ))
                 then
-                        Event::Status 100 "${Status[pid_loop_file_coproc]}" "${Status[pid_loop_period_coproc]}"
+                        Bevent::Status 100 "${Status[pid_loop_file_coproc]}" "${Status[pid_loop_period_coproc]}"
                 else
-                        Event::Kill
-                        Event::Status 99 "${Status[pid_loop_file_coproc]}"
+                        Bevent::Kill
+                        Bevent::Status 99 "${Status[pid_loop_file_coproc]}"
                 fi
         fi
 
         shopt -s extglob
 
-        events_names=( ${!Events[@]} )
+        events_names=( ${!Bevents[@]} )
         files=(
                 ${events_names[@]//+([0-9])_@(command|exclude|function|name|period|symbol|time_last)/}
         )
@@ -544,15 +544,15 @@ Event::Files ()
         if
                 (( ${#files[@]} == 0 ))
         then
-                Event::Status 83
+                Bevent::Status 83
         elif
                 (( ${#commands[@]} == 0 ))
         then
-                Event::Status 82
+                Bevent::Status 82
         elif
                 (( ${#symbols[@]} == 0 ))
         then
-                Event::Status 102
+                Bevent::Status 102
         else
                 Status[time_run_last_file]=$time_curr
                 while
@@ -562,27 +562,27 @@ Event::Files ()
                                 IFS= read -r -d '|'
                         do
                                 [[ $REPLY =~ $path ]] && {
-                                        for s in ${Events[${event_number}_symbol]//:/ }
+                                        for s in ${Bevents[${event_number}_symbol]//:/ }
                                         do
                                                 [[ $symbol == $s ]] && {
-                                                        Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
-                                                        Event::Run
+                                                        Bevent::Status 94 "${Bevents[${event_number}_name]}" "${Bevents[${event_number}_command]}"
+                                                        Bevent::Run
                                                         break
                                                 }
                                         done
                                         s=
                                 }
                         done < <(
-                                printf '%s|\n' "${Events[${event_number}_file]}"
+                                printf '%s|\n' "${Bevents[${event_number}_file]}"
                         )
                 done < <(
                         printf '%s\n' "${files[@]}"
                 )
-                Event::Postpare
+                Bevent::Postpare
         fi
 }
 
-Event::Periods ()
+Bevent::Periods ()
 {
         typeset -a \
                 commands \
@@ -594,34 +594,34 @@ Event::Periods ()
 
         shopt -s extglob
 
-        commands=( ${!Events[@]} )
+        commands=( ${!Bevents[@]} )
         commands=(
                 ${commands[@]//+([0-9])_@(exclude|file|function|name|period|symbol|time_last)/}
         )
 
-        (( ${#commands[@]} )) ||  Event::Status 82
+        (( ${#commands[@]} )) ||  Bevent::Status 82
 
         shopt -u extglob
 
         while
                 IFS='_' read -r event_number _
         do
-                time_diff="time_curr - ${Events[${event_number}_time_last]:-0}"
+                time_diff="time_curr - ${Bevents[${event_number}_time_last]:-0}"
                 if
-                        (( ${Events[${event_number}_period]} ))
+                        (( ${Bevents[${event_number}_period]} ))
                 then
                         Status[time_run_last_period]=$time_curr
                         if
-                                (( time_diff >= ${Events[${event_number}_period]} ))
+                                (( time_diff >= ${Bevents[${event_number}_period]} ))
                         then
-                                Event::Status 94 "${Events[${event_number}_name]}" "${Events[${event_number}_command]}"
-                                Event::Run
+                                Bevent::Status 94 "${Bevents[${event_number}_name]}" "${Bevents[${event_number}_command]}"
+                                Bevent::Run
                                 spool+=(
-                                        "Events[${event_number}_time_last]=${time_curr}"
+                                        "Bevents[${event_number}_time_last]=${time_curr}"
                                 )
                         else
                                 spool+=(
-                                        "Events[${event_number}_time_last]=${Events[${event_number}_time_last]}"
+                                        "Bevents[${event_number}_time_last]=${Bevents[${event_number}_time_last]}"
                                 )
                         fi
                 else
@@ -632,29 +632,29 @@ Event::Periods ()
                 | sort -n
         )
 
-        Event::Postpare
+        Bevent::Postpare
 }
 
-Event::Run ()
+Bevent::Run ()
 if
-        ${Events[${event_number}_function]:-false} 2>/dev/null &&
-        typeset -F "${Events[${event_number}_command]}" 1>/dev/null 2>&1
+        ${Bevents[${event_number}_function]:-false} 2>/dev/null &&
+        typeset -F "${Bevents[${event_number}_command]}" 1>/dev/null 2>&1
 then
         (
-                typeset -xf "${Events[${event_number}_command]}"
-                command setsid bash -c "${Events[${event_number}_command]}" &
+                typeset -xf "${Bevents[${event_number}_command]}"
+                command setsid bash -c "${Bevents[${event_number}_command]}" &
         )
 else
-        ( command setsid "${Events[${event_number}_command]}" & )
+        ( command setsid "${Bevents[${event_number}_command]}" & )
 fi
 
-Event::Version ()
+Bevent::Version ()
 {
-        printf 'v%s\n' "0.1.10"
+        printf 'v%s\n' "0.1.11"
 }
 
 # -- MAIN.
 
-Event::Main "$@"
+Bevent::Main "$@"
 
 # vim: set ts=8 sw=8 tw=0 et :
