@@ -7,14 +7,17 @@ Options[delay]=10
 Events[0_name]=clipbored-restart
 Events[0_command]=clipbored-restart.sh
 Events[0_period]=50
+Events[0_function]=false
 
 Events[1_name]=mail-restart
 Events[1_command]=mail-restart.sh
 Events[1_period]=300
+Events[1_function]=false
 
 Events[2_name]=feedcacher
 Events[2_command]=feedcacher.sh
 Events[2_period]=3600
+Events[2_function]=false
 
 Events[3_name]=backup-squid-urls
 Events[3_command]=backup-squid-urls.sh
@@ -22,6 +25,7 @@ Events[3_file]=/var/log/squid3/access.log
 Events[3_period]=
 Events[3_symbol]=MODIFY
 Events[3_exclude]=
+Events[3_function]=false
 
 Events[4_name]=mailspool-notify
 Events[4_command]=mailspool-notify.sh
@@ -29,6 +33,7 @@ Events[4_file]=${X_XDG_MAIL_DIR}/Maildir/system-mailspool/INBOX/IN/new/
 Events[4_period]=
 Events[4_symbol]=MOVED_TO
 Events[4_exclude]=
+Events[4_function]=false
 
 Events[5_name]=mlr
 Events[5_command]=mlr.sh
@@ -36,5 +41,12 @@ Events[5_file]=${X_XDG_LOG_HOME}/
 Events[5_period]=
 Events[5_symbol]=MODIFY
 Events[5_exclude]="event.log;\.git"
+Events[5_function]=false
+
+Events[6_name]=test
+Events[6_command]=__test
+Events[6_period]=3600
+Events[6_function]=true
+__test () { echo 'test' ; }
 
 # vim: set ts=8 sw=8 tw=0 et :
